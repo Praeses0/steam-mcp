@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { execSync } from 'node:child_process';
+import { execSync, spawn } from 'node:child_process';
 import { parseVdf } from '../vdf/parser.js';
 import type { VdfObject } from '../vdf/types.js';
 import type { UserConfig } from './types.js';
@@ -9,36 +9,58 @@ import type { UserConfig } from './types.js';
 /** SteamID64 offset used to derive SteamID32. */
 const STEAMID64_BASE = 76561197960265728n;
 
+/** Current platform. */
+const PLATFORM = process.platform;
+
 /**
  * Resolve the Steam installation directory.
  *
- * Checks, in order:
- *   1. ~/.local/share/Steam/
- *   2. $XDG_DATA_HOME/Steam/
+ * Platform-specific locations:
+ *   - Linux: ~/.local/share/Steam/, $XDG_DATA_HOME/Steam/, ~/.steam/steam/
+ *   - macOS: ~/Library/Application Support/Steam/
+ *   - Windows: C:\Program Files (x86)\Steam\, registry fallback
  *
  * @returns Absolute path to the Steam directory.
  * @throws If no Steam installation is found.
  */
 export function getSteamDir(): string {
   const home = os.homedir();
+  const candidates: string[] = [];
 
-  // Primary location
-  const primary = path.join(home, '.local', 'share', 'Steam');
-  if (fs.existsSync(primary)) {
-    return primary;
+  if (PLATFORM === 'linux') {
+    candidates.push(path.join(home, '.local', 'share', 'Steam'));
+    const xdgDataHome = process.env['XDG_DATA_HOME'];
+    if (xdgDataHome) {
+      candidates.push(path.join(xdgDataHome, 'Steam'));
+    }
+    candidates.push(path.join(home, '.steam', 'steam'));
+  } else if (PLATFORM === 'darwin') {
+    candidates.push(path.join(home, 'Library', 'Application Support', 'Steam'));
+  } else if (PLATFORM === 'win32') {
+    candidates.push('C:\\Program Files (x86)\\Steam');
+    candidates.push('C:\\Program Files\\Steam');
+    candidates.push(path.join(home, 'Steam'));
+    // Try registry
+    try {
+      const regOutput = execSync(
+        'reg query "HKLM\\SOFTWARE\\WOW6432Node\\Valve\\Steam" /v InstallPath',
+        { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'ignore'] },
+      );
+      const match = regOutput.match(/InstallPath\s+REG_SZ\s+(.+)/);
+      if (match?.[1]) {
+        candidates.unshift(match[1].trim());
+      }
+    } catch { /* registry not available */ }
   }
 
-  // XDG fallback
-  const xdgDataHome = process.env['XDG_DATA_HOME'];
-  if (xdgDataHome) {
-    const xdgPath = path.join(xdgDataHome, 'Steam');
-    if (fs.existsSync(xdgPath)) {
-      return xdgPath;
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) {
+      return candidate;
     }
   }
 
   throw new Error(
-    'Steam installation not found. Checked ~/.local/share/Steam/ and $XDG_DATA_HOME/Steam/',
+    `Steam installation not found. Platform: ${PLATFORM}. Checked: ${candidates.join(', ')}`,
   );
 }
 
@@ -131,16 +153,47 @@ export function getLibraryFolders(): string[] {
 }
 
 /**
+ * Open a steam:// protocol URL using the platform-appropriate method.
+ *
+ * - Linux: spawn `steam <url>`
+ * - macOS: spawn `open <url>`
+ * - Windows: spawn `start "" <url>`
+ */
+export function openSteamUrl(url: string): void {
+  let child;
+  if (PLATFORM === 'win32') {
+    child = spawn('cmd', ['/c', 'start', '', url], { detached: true, stdio: 'ignore' });
+  } else if (PLATFORM === 'darwin') {
+    child = spawn('open', [url], { detached: true, stdio: 'ignore' });
+  } else {
+    child = spawn('steam', [url], { detached: true, stdio: 'ignore' });
+  }
+  child.unref();
+}
+
+/**
  * Check whether Steam is currently running.
  *
- * Uses `pgrep -x steam` to detect the Steam process.
+ * Platform-specific:
+ *   - Linux: pgrep -x steam
+ *   - macOS: pgrep -x steam_osx (or steam)
+ *   - Windows: tasklist for steam.exe
  *
  * @returns true if Steam is running, false otherwise.
  */
 export function isSteamRunning(): boolean {
   try {
-    execSync('pgrep -x steam', { stdio: 'ignore' });
-    return true;
+    if (PLATFORM === 'win32') {
+      const output = execSync('tasklist /FI "IMAGENAME eq steam.exe" /NH', {
+        encoding: 'utf-8',
+        stdio: ['pipe', 'pipe', 'ignore'],
+      });
+      return output.toLowerCase().includes('steam.exe');
+    } else {
+      // Linux and macOS both support pgrep
+      execSync('pgrep -xi steam', { stdio: 'ignore' });
+      return true;
+    }
   } catch {
     return false;
   }

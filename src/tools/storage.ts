@@ -2,12 +2,11 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import fs from 'node:fs';
 import path from 'node:path';
-import { spawn } from 'node:child_process';
 import { readAllManifests } from '../steam/manifests.js';
 import { getLibraries } from '../steam/library.js';
 import { getAllProtonVersionMappings, getInstalledProtonVersions } from '../steam/compat.js';
 import { readWorkshopManifest } from '../steam/workshop.js';
-import { getSteamDir, getUserDataDir, getUserConfig, isSteamRunning } from '../steam/paths.js';
+import { getSteamDir, getUserDataDir, getUserConfig, isSteamRunning, openSteamUrl } from '../steam/paths.js';
 import { formatBytes } from '../util/format.js';
 import { getDirSize } from '../util/fs.js';
 
@@ -472,11 +471,7 @@ export function registerStorageTools(server: McpServer): void {
         gameName = manifest.name;
 
         const url = `steam://move/${params.appid}`;
-        const child = spawn('steam', [url], {
-          detached: true,
-          stdio: 'ignore',
-        });
-        child.unref();
+        openSteamUrl(url);
 
         return {
           content: [

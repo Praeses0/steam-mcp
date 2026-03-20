@@ -1,5 +1,5 @@
 {
-  "name": "steam-mcp",
+  "name": "@praeses/steam-mcp",
   "version": "1.0.0",
   "description": "MCP server for Steam game library management on Linux — 74 tools, local files + optional API",
   "type": "module",

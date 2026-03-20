@@ -1,6 +1,6 @@
 # Steam MCP Server
 
-A feature-rich [Model Context Protocol](https://modelcontextprotocol.io/) server that gives AI assistants full access to your Steam game library on Linux. 50 local tools work from local files with **no API key needed**. 12 additional tools use the Steam Web API for online data like achievements, friends, and full library access.
+A feature-rich [Model Context Protocol](https://modelcontextprotocol.io/) server that gives AI assistants full access to your Steam game library. Works on **Linux, macOS, and Windows**. 50+ local tools work from local files with **no API key needed**. 12 additional tools use the Steam Web API for online data like achievements, friends, and full library access.
 
 Works with Claude Desktop, Claude Code, or any MCP-compatible client.
 
@@ -76,8 +76,12 @@ Get your API key at [steamcommunity.com/dev/apikey](https://steamcommunity.com/d
 ### Prerequisites
 
 - Node.js 18+
-- Steam installed at `~/.local/share/Steam/` (standard Linux location)
-- Linux (reads Linux-specific paths and Proton data)
+- Steam installed in the default location:
+  - **Linux**: `~/.local/share/Steam/`
+  - **macOS**: `~/Library/Application Support/Steam/`
+  - **Windows**: `C:\Program Files (x86)\Steam\`
+
+> **Note:** Proton/Wine tools (compatibility tracking, prefix inspection, crash logs) are Linux-only. All other tools work cross-platform.
 
 ### Setup
 

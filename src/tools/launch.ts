@@ -1,8 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { spawn } from 'node:child_process';
 import { readAllManifests } from '../steam/manifests.js';
-import { isSteamRunning } from '../steam/paths.js';
+import { isSteamRunning, openSteamUrl } from '../steam/paths.js';
 
 // ---------------------------------------------------------------------------
 // Registration
@@ -51,11 +50,7 @@ export function registerLaunchTools(server: McpServer): void {
         }
 
         const url = `steam://install/${params.appid}`;
-        const child = spawn('steam', [url], {
-          detached: true,
-          stdio: 'ignore',
-        });
-        child.unref();
+        openSteamUrl(url);
 
         return {
           content: [
@@ -128,11 +123,7 @@ export function registerLaunchTools(server: McpServer): void {
         }
 
         const url = `steam://uninstall/${params.appid}`;
-        const child = spawn('steam', [url], {
-          detached: true,
-          stdio: 'ignore',
-        });
-        child.unref();
+        openSteamUrl(url);
 
         return {
           content: [
@@ -207,11 +198,7 @@ export function registerLaunchTools(server: McpServer): void {
 
         // Launch via steam:// protocol
         const url = `steam://rungameid/${params.appid}`;
-        const child = spawn('steam', [url], {
-          detached: true,
-          stdio: 'ignore',
-        });
-        child.unref();
+        openSteamUrl(url);
 
         return {
           content: [
@@ -284,11 +271,7 @@ export function registerLaunchTools(server: McpServer): void {
         }
 
         const url = `steam://validate/${params.appid}`;
-        const child = spawn('steam', [url], {
-          detached: true,
-          stdio: 'ignore',
-        });
-        child.unref();
+        openSteamUrl(url);
 
         return {
           content: [
@@ -339,11 +322,7 @@ export function registerLaunchTools(server: McpServer): void {
         }
 
         const url = `steam://store/${params.appid}`;
-        const child = spawn('steam', [url], {
-          detached: true,
-          stdio: 'ignore',
-        });
-        child.unref();
+        openSteamUrl(url);
 
         return {
           content: [
