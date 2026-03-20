@@ -1,7 +1,10 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { steamApiRequest } from '../steam/api.js';
-import { getUserConfig } from '../steam/paths.js';
+import fs from 'node:fs';
+import path from 'node:path';
+import { hasApiKey, steamApiRequest } from '../steam/api.js';
+import { getUserConfig, getUserDataDir } from '../steam/paths.js';
+import { parseVdf } from '../vdf/parser.js';
 import { formatTimestamp } from '../util/format.js';
 
 // ---------------------------------------------------------------------------
@@ -72,7 +75,7 @@ export function registerAchievementsApiTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'get_player_achievements',
-    'Fetch achievement unlock status for a player on a specific game from the Steam Web API',
+    'Get achievement unlock status for a player on a game',
     {
       appid: z.number().describe('Steam application ID'),
       steamid: z
@@ -81,82 +84,147 @@ export function registerAchievementsApiTools(server: McpServer): void {
         .describe('SteamID64 of the player (defaults to current user)'),
     },
     async (params) => {
-      try {
-        const { appid } = params;
-        const steamid = params.steamid ?? getUserConfig().steamId64;
+      const { appid } = params;
 
-        let data: PlayerAchievementsResponse;
+      // ---- Try API path first (if key is available) ----
+      if (hasApiKey()) {
         try {
-          data = await steamApiRequest<PlayerAchievementsResponse>(
+          const steamid = params.steamid ?? getUserConfig().steamId64;
+
+          const data = await steamApiRequest<PlayerAchievementsResponse>(
             'ISteamUserStats',
             'GetPlayerAchievements',
             'v1',
             { steamid, appid },
           );
-        } catch (error) {
-          const msg = error instanceof Error ? error.message : String(error);
+
+          const { playerstats } = data;
+
+          if (!playerstats.success || !playerstats.achievements) {
+            return {
+              content: [
+                {
+                  type: 'text' as const,
+                  text: `Game "${playerstats.gameName || appid}" has no achievements or the API returned success=false.`,
+                },
+              ],
+            };
+          }
+
+          const achievements = playerstats.achievements;
+          const total = achievements.length;
+          const unlocked = achievements.filter((a) => a.achieved === 1);
+          const locked = achievements.filter((a) => a.achieved === 0);
+          const pct = total > 0 ? ((unlocked.length / total) * 100).toFixed(1) : '0.0';
+
+          unlocked.sort((a, b) => b.unlocktime - a.unlocktime);
+
+          locked.sort((a, b) => {
+            const nameA = a.name ?? a.apiname;
+            const nameB = b.name ?? b.apiname;
+            return nameA.localeCompare(nameB);
+          });
+
+          const unlockedList = unlocked.map((a) => ({
+            name: a.name ?? a.apiname,
+            apiname: a.apiname,
+            unlockedAt: formatTimestamp(a.unlocktime),
+          }));
+
+          const lockedList = locked.map((a) => ({
+            name: a.name ?? a.apiname,
+            apiname: a.apiname,
+            description: a.description ?? null,
+          }));
+
+          const output = {
+            source: 'api' as const,
+            gameName: playerstats.gameName,
+            steamID: playerstats.steamID,
+            completion: `${unlocked.length}/${total} (${pct}%)`,
+            totalAchievements: total,
+            unlockedCount: unlocked.length,
+            lockedCount: locked.length,
+            unlocked: unlockedList,
+            locked: lockedList,
+          };
+
+          return {
+            content: [{ type: 'text' as const, text: JSON.stringify(output, null, 2) }],
+          };
+        } catch {
+          // API failed — fall through to local fallback
+        }
+      }
+
+      // ---- Local fallback ----
+      try {
+        const userDataDir = getUserDataDir();
+        const appDir = path.join(userDataDir, String(appid));
+
+        if (!fs.existsSync(appDir)) {
           return {
             content: [
               {
                 type: 'text' as const,
-                text: `Could not fetch achievements for appid ${appid}. The game may have no achievements or the profile may be private. Error: ${msg}`,
-              },
-            ],
-            isError: true,
-          };
-        }
-
-        const { playerstats } = data;
-
-        if (!playerstats.success || !playerstats.achievements) {
-          return {
-            content: [
-              {
-                type: 'text' as const,
-                text: `Game "${playerstats.gameName || appid}" has no achievements or the API returned success=false.`,
+                text: `No userdata directory found for appid ${appid}. The game may not have been played or may not store local data.`,
               },
             ],
           };
         }
 
-        const achievements = playerstats.achievements;
-        const total = achievements.length;
-        const unlocked = achievements.filter((a) => a.achieved === 1);
-        const locked = achievements.filter((a) => a.achieved === 0);
-        const pct = total > 0 ? ((unlocked.length / total) * 100).toFixed(1) : '0.0';
+        // Check for stats directory
+        const statsDir = path.join(appDir, 'stats');
+        let statsFiles: string[] = [];
+        if (fs.existsSync(statsDir)) {
+          try {
+            statsFiles = fs.readdirSync(statsDir);
+          } catch {
+            // unreadable
+          }
+        }
 
-        // Sort unlocked by unlock time descending (most recent first)
-        unlocked.sort((a, b) => b.unlocktime - a.unlocktime);
+        // Check for remotecache.vdf
+        let remoteCacheData: Record<string, unknown> | null = null;
+        const remoteCachePath = path.join(appDir, 'remotecache.vdf');
+        if (fs.existsSync(remoteCachePath)) {
+          try {
+            const content = fs.readFileSync(remoteCachePath, 'utf-8');
+            remoteCacheData = parseVdf(content) as Record<string, unknown>;
+          } catch {
+            // parse error — skip
+          }
+        }
 
-        // Sort locked alphabetically by name/apiname
-        locked.sort((a, b) => {
-          const nameA = a.name ?? a.apiname;
-          const nameB = b.name ?? b.apiname;
-          return nameA.localeCompare(nameB);
-        });
+        // List other files in the app userdata directory
+        let appDirFiles: string[] = [];
+        try {
+          appDirFiles = fs.readdirSync(appDir);
+        } catch {
+          // unreadable
+        }
 
-        const unlockedList = unlocked.map((a) => ({
-          name: a.name ?? a.apiname,
-          apiname: a.apiname,
-          unlockedAt: formatTimestamp(a.unlocktime),
-        }));
-
-        const lockedList = locked.map((a) => ({
-          name: a.name ?? a.apiname,
-          apiname: a.apiname,
-          description: a.description ?? null,
-        }));
-
-        const output = {
-          gameName: playerstats.gameName,
-          steamID: playerstats.steamID,
-          completion: `${unlocked.length}/${total} (${pct}%)`,
-          totalAchievements: total,
-          unlockedCount: unlocked.length,
-          lockedCount: locked.length,
-          unlocked: unlockedList,
-          locked: lockedList,
+        const output: Record<string, unknown> = {
+          source: 'local',
+          appid,
+          userdataPath: appDir,
+          filesInAppDir: appDirFiles,
         };
+
+        if (statsFiles.length > 0) {
+          output.statsDir = statsDir;
+          output.statsFiles = statsFiles;
+        } else {
+          output.statsDir = null;
+          output.statsNote = 'No stats directory found for this game.';
+        }
+
+        if (remoteCacheData) {
+          output.remotecache = remoteCacheData;
+        } else {
+          output.remotecache = null;
+          output.remotecacheNote = 'No remotecache.vdf found for this game.';
+        }
 
         return {
           content: [{ type: 'text' as const, text: JSON.stringify(output, null, 2) }],
@@ -176,7 +244,7 @@ export function registerAchievementsApiTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'get_global_achievement_stats',
-    'Fetch global achievement unlock percentages for a game, merged with display names from the game schema',
+    'Get global achievement unlock percentages for a game',
     {
       appid: z.number().describe('Steam application ID'),
     },
@@ -250,7 +318,7 @@ export function registerAchievementsApiTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'get_game_schema',
-    'Fetch the full achievement and stat schema for a game from the Steam Web API',
+    'Get achievement and stat schema for a game',
     {
       appid: z.number().describe('Steam application ID'),
     },

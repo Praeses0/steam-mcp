@@ -11,7 +11,7 @@ export function registerWorkshopTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'list_workshop_items',
-    'List installed Steam Workshop items for a specific game',
+    'List installed Workshop items for a game',
     {
       appid: z.number().describe('Steam application ID'),
     },
@@ -74,7 +74,7 @@ export function registerWorkshopTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'get_workshop_stats',
-    'Get aggregate Steam Workshop statistics: total items, total size, and per-game breakdown',
+    'Get aggregate Workshop stats with per-game breakdown',
     {},
     async () => {
       try {

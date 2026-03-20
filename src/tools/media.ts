@@ -34,7 +34,7 @@ export function registerMediaTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'get_game_media',
-    'Get header image, capsule art, hero, and logo URLs for a Steam game, plus any local grid image overrides',
+    'Get image URLs and local grid overrides for a game',
     {
       appid: z.number().describe('Steam application ID'),
     },

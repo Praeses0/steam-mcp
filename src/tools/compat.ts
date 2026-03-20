@@ -19,7 +19,7 @@ export function registerCompatTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'list_proton_games',
-    'List all games using Proton/Wine compatibility layer, with Proton version and prefix size',
+    'List all games using Proton/Wine with version and prefix size',
     {},
     async () => {
       try {
@@ -125,7 +125,7 @@ export function registerCompatTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'get_proton_info',
-    'Get detailed Proton/Wine compatibility info for a specific game',
+    'Get Proton/Wine compatibility details for a game',
     {
       appid: z.number().describe('Steam application ID'),
     },
@@ -182,7 +182,7 @@ export function registerCompatTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'list_proton_versions',
-    'List all installed Proton and GE-Proton versions with size and which games use each',
+    'List installed Proton versions with size and game usage',
     {},
     async () => {
       try {
@@ -248,7 +248,7 @@ export function registerCompatTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'get_proton_db_rating',
-    'Fetch crowd-sourced ProtonDB compatibility rating for a game',
+    'Fetch ProtonDB compatibility rating for a game',
     {
       appid: z.number().describe('Steam application ID'),
     },
@@ -318,7 +318,7 @@ export function registerCompatTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'recommend_proton_version',
-    'Suggest the best Proton version for a game based on ProtonDB data and locally installed versions',
+    'Suggest the best Proton version for a game',
     {
       appid: z.number().describe('Steam application ID'),
     },
@@ -412,7 +412,7 @@ export function registerCompatTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'wine_prefix_info',
-    'Inspect a Wine/Proton prefix for a game — size, Windows version, file count, user directories',
+    'Inspect a Wine/Proton prefix for a game',
     {
       appid: z.number().describe('Steam application ID'),
     },
@@ -519,7 +519,7 @@ export function registerCompatTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'get_crash_logs',
-    'Look for crash dumps and error logs in a game\'s Wine/Proton prefix and Steam logs',
+    'Find crash dumps and error logs for a game',
     {
       appid: z.number().describe('Steam application ID'),
       lines: z.number().default(50).describe('Number of lines to read from the end of log files (default 50)'),

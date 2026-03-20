@@ -79,7 +79,7 @@ export function registerDealsTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'check_sale',
-    'Check if a Steam game is currently on sale. Provide an appid or a game name to search for.',
+    'Check if a game is currently on sale',
     {
       appid: z
         .number()
@@ -225,7 +225,7 @@ export function registerDealsTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'wishlist_deals',
-    'Find games on sale from a Steam user\'s wishlist',
+    'Find discounted games on a user\'s wishlist',
     {
       steamid: z
         .string()

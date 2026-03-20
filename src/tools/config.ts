@@ -17,7 +17,7 @@ export function registerConfigTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'get_launch_options',
-    'Read the launch options configured for a Steam game',
+    'Read launch options for a game',
     {
       appid: z.number().describe('Steam application ID'),
     },
@@ -51,7 +51,7 @@ export function registerConfigTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'set_launch_options',
-    'Set launch options for a Steam game. WARNING: Modifying localconfig.vdf while Steam is running may cause data loss.',
+    'Set launch options for a game (Steam must not be running)',
     {
       appid: z.number().describe('Steam application ID'),
       options: z.string().describe('Launch options string (e.g. "-novid -windowed")'),
@@ -106,7 +106,7 @@ export function registerConfigTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'get_steam_settings',
-    'Read Steam client settings from localconfig.vdf: FPS overlay, overlay toggle, controller type, streaming settings',
+    'Read Steam client settings like FPS overlay and controller config',
     {},
     async () => {
       try {

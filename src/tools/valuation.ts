@@ -82,7 +82,7 @@ export function registerValuationTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'library_value',
-    'Estimate the total value of a Steam library by checking current store prices for owned games. Checks a sample of the most-played games.',
+    'Estimate the total value of a Steam library by store prices',
     {
       steamid: z
         .string()

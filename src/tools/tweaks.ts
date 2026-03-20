@@ -124,7 +124,7 @@ export function registerTweaksTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'pcgamingwiki_fixes',
-    'Look up a game on PCGamingWiki to find fixes, tweaks, and known issues. Search by Steam appid or game name.',
+    'Look up fixes and tweaks for a game on PCGamingWiki',
     {
       appid: z.number().optional().describe('Steam application ID'),
       name: z.string().optional().describe('Game name to search for (used if appid is not provided)'),
@@ -300,7 +300,7 @@ export function registerTweaksTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'launch_option_presets',
-    'List or apply common launch option presets (MangoHud, GameMode, Proton tweaks, etc.)',
+    'List or apply common launch option presets',
     {
       action: z
         .enum(['list', 'apply'])
@@ -426,7 +426,7 @@ export function registerTweaksTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'mangohud_config',
-    'Show, set, or reset MangoHud configuration (global or per-game)',
+    'Manage MangoHud configuration (global or per-game)',
     {
       action: z
         .enum(['show', 'set', 'reset'])

@@ -56,7 +56,7 @@ export function registerSaveTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'list_cloud_saves',
-    'List per-game cloud save data stored locally, sorted by size or name',
+    'List local cloud save data per game',
     {
       sort_by: z
         .enum(['size', 'name'])
@@ -142,7 +142,7 @@ export function registerSaveTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'cloud_save_stats',
-    'Get aggregate cloud save statistics: total size, game count, and top 10 by size',
+    'Get cloud save stats with total size and top games',
     {},
     async () => {
       try {

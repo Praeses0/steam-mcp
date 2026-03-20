@@ -43,7 +43,7 @@ export function registerStorageTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'disk_usage_report',
-    'Comprehensive per-game disk usage breakdown including installs, compatdata (Proton prefixes), shader caches, workshop content, and cloud saves',
+    'Per-game disk usage breakdown across all data types',
     {},
     async () => {
       try {
@@ -189,7 +189,7 @@ export function registerStorageTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'find_orphaned_data',
-    'Find orphaned data directories (compatdata, shadercache, workshop) for games that are no longer installed',
+    'Find orphaned data directories for uninstalled games',
     {},
     async () => {
       try {
@@ -276,7 +276,7 @@ export function registerStorageTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'cleanup_recommendations',
-    'Get actionable cleanup suggestions: orphaned data, large shader caches, never-played games, and unused Proton versions',
+    'Get cleanup suggestions for orphaned data and unused Proton versions',
     {},
     async () => {
       try {
@@ -434,7 +434,7 @@ export function registerStorageTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'move_game',
-    'Trigger Steam\'s move-game-to-library dialog for an installed game. Steam must be running.',
+    'Move an installed game to another library folder via Steam',
     {
       appid: z.number().describe('Steam application ID to move'),
     },
@@ -503,7 +503,7 @@ export function registerStorageTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'backup_saves',
-    'Copy cloud save data from Steam userdata to a backup directory. Can back up a single game or all games.',
+    'Back up cloud save data to a directory',
     {
       appid: z.number().optional().describe('Steam application ID to back up saves for. If omitted, backs up all games.'),
       destination: z.string().describe('Backup directory path where saves will be copied to'),
@@ -595,72 +595,5 @@ export function registerStorageTools(server: McpServer): void {
     },
   );
 
-  // -------------------------------------------------------------------------
-  // estimate_install_size
-  // -------------------------------------------------------------------------
-  server.tool(
-    'estimate_install_size',
-    'Query the Steam store API for game info and system requirements before installing.',
-    {
-      appid: z.number().describe('Steam application ID to look up'),
-    },
-    async (params) => {
-      try {
-        const url = `https://store.steampowered.com/api/appdetails?appids=${params.appid}`;
-        const response = await fetch(url);
-        if (!response.ok) {
-          return {
-            content: [
-              {
-                type: 'text' as const,
-                text: `Steam store API returned HTTP ${response.status}`,
-              },
-            ],
-            isError: true,
-          };
-        }
-
-        const json = (await response.json()) as Record<
-          string,
-          { success: boolean; data?: Record<string, unknown> }
-        >;
-        const entry = json[String(params.appid)];
-
-        if (!entry || !entry.success || !entry.data) {
-          return {
-            content: [
-              {
-                type: 'text' as const,
-                text: `No data found for appid ${params.appid}. The game may not exist or may be region-locked.`,
-              },
-            ],
-            isError: true,
-          };
-        }
-
-        const data = entry.data;
-
-        const output = {
-          appid: params.appid,
-          name: data['name'] ?? 'Unknown',
-          type: data['type'] ?? 'Unknown',
-          isFree: data['is_free'] ?? false,
-          shortDescription: data['short_description'] ?? '',
-          pcRequirements: data['pc_requirements'] ?? null,
-        };
-
-        return {
-          content: [{ type: 'text' as const, text: JSON.stringify(output, null, 2) }],
-        };
-      } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return {
-          content: [
-            { type: 'text' as const, text: `Error fetching install size info: ${msg}` },
-          ],
-          isError: true,
-        };
-      }
-    },
-  );
+  // estimate_install_size has been merged into get_game (games.ts) via include_store_details parameter
 }

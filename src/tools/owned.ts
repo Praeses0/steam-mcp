@@ -34,7 +34,7 @@ export function registerOwnedTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'get_owned_games',
-    'Get a list of games owned by a Steam user, with sorting, searching, and pagination',
+    'Get owned games with sorting, searching, and pagination',
     {
       steamid: z
         .string()
@@ -130,7 +130,7 @@ export function registerOwnedTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'get_recently_played',
-    'Get a list of games recently played by a Steam user (last two weeks)',
+    'Get recently played games from the last two weeks',
     {
       steamid: z
         .string()

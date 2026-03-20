@@ -65,7 +65,7 @@ export function registerHistoryTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'get_play_history',
-    'Get playtime information across ALL games (installed and uninstalled) from localconfig.vdf, with sorting, totals, and recently-played stats',
+    'Get playtime history across all games with sorting and totals',
     {
       sort_by: z
         .enum(['playtime', 'last_played', 'name'])

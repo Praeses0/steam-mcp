@@ -13,7 +13,7 @@ export function registerLaunchTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'install_game',
-    'Tell Steam to start installing a game by appid. Steam must be running — it handles the actual download.',
+    'Install a game via Steam (Steam must be running)',
     {
       appid: z.number().describe('Steam application ID to install'),
     },
@@ -82,7 +82,7 @@ export function registerLaunchTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'uninstall_game',
-    'Tell Steam to uninstall a game by appid. Steam must be running — it handles the actual removal.',
+    'Uninstall a game via Steam (Steam must be running)',
     {
       appid: z.number().describe('Steam application ID to uninstall'),
     },
@@ -155,7 +155,7 @@ export function registerLaunchTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'launch_game',
-    'Launch a Steam game via the steam:// protocol. Requires Steam to be running.',
+    'Launch a game via Steam protocol',
     {
       appid: z.number().describe('Steam application ID to launch'),
     },
@@ -230,7 +230,7 @@ export function registerLaunchTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'verify_game',
-    'Trigger Steam\'s file verification for an installed game. Steam must be running.',
+    'Verify integrity of game files via Steam',
     {
       appid: z.number().describe('Steam application ID to verify'),
     },
@@ -303,7 +303,7 @@ export function registerLaunchTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'open_store_page',
-    'Open a game\'s Steam store page in the Steam client. Steam must be running.',
+    'Open a game\'s store page in the Steam client',
     {
       appid: z.number().describe('Steam application ID to open the store page for'),
     },

@@ -115,7 +115,7 @@ export function registerInsightsTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'completion_stats',
-    'Analyze achievement completion rates across your top games by playtime. Shows which games you have fully completed, your average completion rate, and games closest to 100%.',
+    'Analyze achievement completion rates across top games',
     {
       steamid: z
         .string()
@@ -217,7 +217,7 @@ export function registerInsightsTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'gaming_timeline',
-    'Build a month-by-month timeline of your gaming activity, showing which games were played each month and total playtime per month.',
+    'Build a month-by-month gaming activity timeline',
     {
       steamid: z
         .string()
@@ -347,7 +347,7 @@ export function registerInsightsTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'year_in_review',
-    'Generate a year-in-review summary for a specific year: games played, total playtime, top games, and achievement completion for your most-played titles.',
+    'Generate a year-in-review summary with top games and stats',
     {
       steamid: z
         .string()

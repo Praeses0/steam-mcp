@@ -13,7 +13,7 @@ export function registerWishlistTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'get_wishlist',
-    'Fetch a Steam user\'s wishlist with game names, priorities, reviews, and pricing info',
+    'Fetch a user\'s wishlist with priorities and pricing',
     {
       steamid: z
         .string()

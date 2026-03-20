@@ -67,7 +67,7 @@ export function registerProfileTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'get_player_summary',
-    'Fetch a Steam player profile summary including online status, currently playing game, profile URL, and account age',
+    'Fetch a player profile summary with online status and account info',
     {
       steamid: z.string().optional().describe('Steam ID 64 (defaults to current user)'),
     },
@@ -148,7 +148,7 @@ export function registerProfileTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'get_player_level',
-    'Get a Steam player level, XP progress, and badge summary',
+    'Get player level, XP progress, and badge count',
     {
       steamid: z.string().optional().describe('Steam ID 64 (defaults to current user)'),
     },
@@ -213,7 +213,7 @@ export function registerProfileTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'get_player_bans',
-    'Check VAC bans, game bans, community bans, and trade ban status for a Steam player',
+    'Check VAC, game, and community ban status for a player',
     {
       steamid: z.string().optional().describe('Steam ID 64 (defaults to current user)'),
     },

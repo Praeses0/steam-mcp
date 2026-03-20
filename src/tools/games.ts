@@ -11,12 +11,6 @@ import type { AppManifest } from '../steam/types.js';
 // Helpers
 // ---------------------------------------------------------------------------
 
-interface SearchResult {
-  appid: number;
-  name: string;
-  score: number;
-}
-
 const ROMAN_MAP: Record<string, string> = {
   ii: '2',
   iii: '3',
@@ -95,7 +89,7 @@ export function registerGameTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'list_games',
-    'List installed Steam games across all libraries with optional filtering, sorting, and pagination',
+    'List installed games with filtering, sorting, and pagination',
     {
       search: z.string().optional().describe('Filter games by name (case-insensitive substring match)'),
       library: z.string().optional().describe('Filter by library path'),
@@ -184,9 +178,10 @@ export function registerGameTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'get_game',
-    'Get comprehensive details for a single installed Steam game by appid',
+    'Get full details for a game by appid, optionally with store metadata',
     {
       appid: z.number().describe('Steam application ID'),
+      include_store_details: z.boolean().default(false).describe('Fetch additional store metadata such as description, genres, developers, publishers, metacritic, platforms, price, and release date (default false)'),
     },
     async (params) => {
       try {
@@ -269,6 +264,67 @@ export function registerGameTools(server: McpServer): void {
           // workshop info may not be available
         }
 
+        // Optionally fetch store details
+        if (params.include_store_details) {
+          try {
+            const url = `https://store.steampowered.com/api/appdetails?appids=${params.appid}`;
+            const response = await fetch(url);
+
+            if (response.ok) {
+              const data = (await response.json()) as Record<
+                string,
+                {
+                  success: boolean;
+                  data?: {
+                    short_description?: string;
+                    genres?: Array<{ id: string; description: string }>;
+                    developers?: string[];
+                    publishers?: string[];
+                    metacritic?: { score: number; url: string };
+                    platforms?: { windows: boolean; mac: boolean; linux: boolean };
+                    price_overview?: {
+                      currency: string;
+                      initial: number;
+                      final: number;
+                      discount_percent: number;
+                      final_formatted: string;
+                    };
+                    is_free?: boolean;
+                    release_date?: { coming_soon: boolean; date: string };
+                    pc_requirements?: { minimum?: string; recommended?: string };
+                  };
+                }
+              >;
+
+              const entry = data[String(params.appid)];
+              if (entry?.success && entry.data) {
+                const d = entry.data;
+                game.short_description = d.short_description ?? null;
+                game.genres = (d.genres ?? []).map((g) => g.description);
+                game.developers = d.developers ?? [];
+                game.publishers = d.publishers ?? [];
+                game.metacritic = d.metacritic
+                  ? { score: d.metacritic.score, url: d.metacritic.url }
+                  : null;
+                game.platforms = d.platforms ?? null;
+                game.price = d.price_overview
+                  ? {
+                      final_formatted: d.price_overview.final_formatted,
+                      discount_percent: d.price_overview.discount_percent,
+                      currency: d.price_overview.currency,
+                    }
+                  : d.is_free
+                    ? 'Free'
+                    : 'N/A';
+                game.release_date = d.release_date ?? null;
+                game.pc_requirements = d.pc_requirements ?? null;
+              }
+            }
+          } catch {
+            // Store details fetch failed — continue without them
+          }
+        }
+
         return {
           content: [{ type: 'text' as const, text: JSON.stringify(game, null, 2) }],
         };
@@ -287,20 +343,22 @@ export function registerGameTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'search_games',
-    'Smart tokenized search for installed Steam games. Supports exact matches, substring, word-start, and abbreviation/initials matching (e.g. "ck3" finds "Crusader Kings III"). Only searches installed games — use search_store to find any game on Steam.',
+    'Search games by name with smart matching; optionally include store',
     {
       query: z.string().describe('Search query'),
+      include_store: z.boolean().default(false).describe('Also search the Steam store for uninstalled games (default false)'),
     },
     async (params) => {
       try {
         const manifests = await readAllManifests();
+        const installedAppids = new Set(manifests.map((m) => m.appid));
 
-        const results: SearchResult[] = [];
+        const results: Array<{ appid: number; name: string; score: number; installed: boolean }> = [];
 
         for (const m of manifests) {
           const score = scoreSearch(params.query, m);
           if (score > 0) {
-            results.push({ appid: m.appid, name: m.name, score });
+            results.push({ appid: m.appid, name: m.name, score, installed: true });
           }
         }
 
@@ -312,12 +370,56 @@ export function registerGameTools(server: McpServer): void {
 
         const top = results.slice(0, 20);
 
-        const output = {
+        // Optionally search the Steam store
+        let storeResults: Array<{ appid: number; name: string; type: string; price: string; installed: boolean }> = [];
+        if (params.include_store) {
+          try {
+            const url = `https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(params.query)}&l=english&cc=US`;
+            const response = await fetch(url);
+
+            if (response.ok) {
+              const data = (await response.json()) as {
+                total: number;
+                items?: Array<{
+                  type: string;
+                  name: string;
+                  id: number;
+                  price?: { final?: number; currency?: string };
+                }>;
+              };
+
+              if (data.items) {
+                storeResults = data.items
+                  .filter((item) => !installedAppids.has(item.id))
+                  .map((item) => ({
+                    appid: item.id,
+                    name: item.name,
+                    type: item.type,
+                    price: item.price?.final != null
+                      ? item.price.final === 0
+                        ? 'Free'
+                        : `$${(item.price.final / 100).toFixed(2)}`
+                      : 'N/A',
+                    installed: false,
+                  }));
+              }
+            }
+          } catch {
+            // Store search failed — continue with local results only
+          }
+        }
+
+        const output: Record<string, unknown> = {
           query: params.query,
           resultCount: top.length,
           totalMatches: results.length,
           results: top,
         };
+
+        if (params.include_store) {
+          output.storeResults = storeResults;
+          output.storeResultCount = storeResults.length;
+        }
 
         return {
           content: [{ type: 'text' as const, text: JSON.stringify(output, null, 2) }],
@@ -333,90 +435,11 @@ export function registerGameTools(server: McpServer): void {
   );
 
   // -------------------------------------------------------------------------
-  // search_store
-  // -------------------------------------------------------------------------
-  server.tool(
-    'search_store',
-    'Search the Steam store for any game by name and get its appid. Uses the public Steam store search API (no API key needed). Use this to look up appids for install_game/uninstall_game.',
-    {
-      query: z.string().describe('Game name to search for'),
-      limit: z.number().default(5).describe('Max results (default 5)'),
-    },
-    async (params) => {
-      try {
-        const url = `https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(params.query)}&l=english&cc=US`;
-        const response = await fetch(url);
-
-        if (!response.ok) {
-          return {
-            content: [
-              {
-                type: 'text' as const,
-                text: `Steam store search failed with status ${response.status}`,
-              },
-            ],
-            isError: true,
-          };
-        }
-
-        const data = (await response.json()) as {
-          total: number;
-          items?: Array<{
-            type: string;
-            name: string;
-            id: number;
-            price?: { final?: number; currency?: string };
-          }>;
-        };
-
-        if (!data.items || data.items.length === 0) {
-          return {
-            content: [
-              {
-                type: 'text' as const,
-                text: `No results found for "${params.query}"`,
-              },
-            ],
-          };
-        }
-
-        const results = data.items.slice(0, params.limit).map((item) => ({
-          appid: item.id,
-          name: item.name,
-          type: item.type,
-          price: item.price?.final != null
-            ? item.price.final === 0
-              ? 'Free'
-              : `$${(item.price.final / 100).toFixed(2)}`
-            : 'N/A',
-        }));
-
-        const output = {
-          query: params.query,
-          resultCount: results.length,
-          totalOnStore: data.total,
-          results,
-        };
-
-        return {
-          content: [{ type: 'text' as const, text: JSON.stringify(output, null, 2) }],
-        };
-      } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return {
-          content: [{ type: 'text' as const, text: `Error searching Steam store: ${msg}` }],
-          isError: true,
-        };
-      }
-    },
-  );
-
-  // -------------------------------------------------------------------------
   // compare_games
   // -------------------------------------------------------------------------
   server.tool(
     'compare_games',
-    'Side-by-side comparison of two installed Steam games by appid',
+    'Compare two installed games side-by-side',
     {
       appid1: z.number().describe('Steam application ID of the first game'),
       appid2: z.number().describe('Steam application ID of the second game'),
@@ -495,7 +518,7 @@ export function registerGameTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'random_game',
-    'Pick a random installed game to play, optionally filtering by name and excluding tool entries',
+    'Pick a random installed game to play',
     {
       filter: z.string().optional().describe('Substring filter on game name (case-insensitive)'),
       exclude_tools: z
@@ -574,7 +597,7 @@ export function registerGameTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'pile_of_shame',
-    'List installed games that have never been played (lastPlayed is 0), excluding tool entries',
+    'List installed games that have never been played',
     {
       sort_by: z.enum(['size', 'name']).default('size').describe('Sort field (default: size)'),
       sort_order: z.enum(['asc', 'desc']).default('desc').describe('Sort direction (default: desc)'),

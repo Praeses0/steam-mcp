@@ -20,7 +20,7 @@ export function registerCacheTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'get_shader_cache',
-    'Get shader cache info (size and path) for a specific Steam game',
+    'Get shader cache size and path for a game',
     {
       appid: z.number().describe('Steam application ID'),
     },
@@ -91,7 +91,7 @@ export function registerCacheTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'shader_cache_stats',
-    'Get total shader cache overview: total size, top 10 games by cache size, and GPU/driver info from ShaderCacheManager',
+    'Get shader cache overview with top games and GPU info',
     {},
     async () => {
       try {

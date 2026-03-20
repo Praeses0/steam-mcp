@@ -28,7 +28,7 @@ export function registerShortcutTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'list_shortcuts',
-    'List non-Steam game shortcuts added by the user, including name, executable path, launch options, and tags',
+    'List non-Steam game shortcuts',
     {},
     async () => {
       try {
@@ -80,7 +80,7 @@ export function registerShortcutTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'add_shortcut',
-    'Add a non-Steam game shortcut with a name, executable path, and optional launch options and tags',
+    'Add a non-Steam game shortcut',
     {
       name: z.string().describe('Display name for the shortcut'),
       exe: z.string().describe('Absolute path to the executable'),
@@ -157,7 +157,7 @@ export function registerShortcutTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'remove_shortcut',
-    'Remove a non-Steam game shortcut by appid or name',
+    'Remove a non-Steam game shortcut',
     {
       appid: z.number().optional().describe('The appid of the shortcut to remove'),
       name: z
@@ -239,7 +239,7 @@ export function registerShortcutTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'import_lutris_games',
-    'Import games from Lutris as non-Steam shortcuts. Requires the lutris CLI to be installed.',
+    'Import Lutris games as non-Steam shortcuts',
     {
       game_ids: z
         .array(z.number())

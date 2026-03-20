@@ -60,7 +60,7 @@ export function registerStatusTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'steam_status',
-    'Check if Steam is running, get current user info, and count installed games',
+    'Check if Steam is running and get current user info',
     {},
     async () => {
       try {
@@ -110,7 +110,7 @@ export function registerStatusTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'get_download_queue',
-    'Check for games currently downloading, updating, or in a non-installed state by inspecting manifest stateFlags',
+    'Check for active downloads or updates in progress',
     {},
     async () => {
       try {
@@ -151,7 +151,7 @@ export function registerStatusTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'download_progress',
-    'Check download/update progress for a specific game or all active downloads. Reads BytesToDownload/BytesDownloaded and BytesToStage/BytesStaged directly from manifest files (not cached).',
+    'Check download/update progress for games',
     {
       appid: z.number().optional().describe('Check a specific game, or omit for all active downloads'),
     },

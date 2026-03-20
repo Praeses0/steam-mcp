@@ -91,7 +91,7 @@ export function registerExportTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'export_library',
-    'Export the Steam game library to a JSON or CSV file, optionally including achievement data',
+    'Export game library to JSON or CSV file',
     {
       format: z
         .enum(['json', 'csv'])

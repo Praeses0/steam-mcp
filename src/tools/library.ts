@@ -11,7 +11,7 @@ export function registerLibraryTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'list_libraries',
-    'List all Steam library folders with path, total size, free space, game count, and mount status',
+    'List all Steam library folders with size and free space',
     {},
     async () => {
       try {
@@ -44,7 +44,7 @@ export function registerLibraryTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'get_library_stats',
-    'Get aggregate statistics across all Steam libraries: total games, total size, playtime, top games by size, recently played, and pile of shame (installed but never played)',
+    'Get aggregate stats across all libraries with top games and totals',
     {},
     async () => {
       try {

@@ -38,7 +38,7 @@ export function registerNewsTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'get_news',
-    'Fetch recent news articles for a Steam game from the Steam news API',
+    'Fetch recent news articles for a game',
     {
       appid: z.number().describe('Steam application ID'),
       count: z.number().default(5).describe('Number of news items to fetch (default 5)'),

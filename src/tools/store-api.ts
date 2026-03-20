@@ -6,43 +6,6 @@ import { formatPlaytime, formatTimestamp } from '../util/format.js';
 // Types
 // ---------------------------------------------------------------------------
 
-interface AppDetailsData {
-  type: string;
-  name: string;
-  steam_appid: number;
-  required_age: number;
-  is_free: boolean;
-  detailed_description: string;
-  about_the_game: string;
-  short_description: string;
-  supported_languages: string;
-  header_image: string;
-  website: string | null;
-  pc_requirements: { minimum?: string; recommended?: string };
-  developers: string[];
-  publishers: string[];
-  price_overview?: {
-    currency: string;
-    initial: number;
-    final: number;
-    discount_percent: number;
-    final_formatted: string;
-  };
-  platforms: { windows: boolean; mac: boolean; linux: boolean };
-  metacritic?: { score: number; url: string };
-  categories: Array<{ id: number; description: string }>;
-  genres: Array<{ id: string; description: string }>;
-  release_date: { coming_soon: boolean; date: string };
-  content_descriptors: unknown;
-}
-
-interface AppDetailsResponse {
-  [appid: string]: {
-    success: boolean;
-    data: AppDetailsData;
-  };
-}
-
 interface ReviewAuthor {
   steamid: string;
   num_games_owned: number;
@@ -80,112 +43,18 @@ interface ReviewsResponse {
 }
 
 // ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/** Strip HTML tags from a string. */
-function stripHtml(html: string): string {
-  return html.replace(/<[^>]*>/g, '');
-}
-
-// ---------------------------------------------------------------------------
 // Registration
 // ---------------------------------------------------------------------------
 
 export function registerStoreApiTools(server: McpServer): void {
-  // -------------------------------------------------------------------------
-  // get_game_details
-  // -------------------------------------------------------------------------
-  server.tool(
-    'get_game_details',
-    'Fetch detailed information about a Steam game from the store API (description, price, platforms, metacritic, etc.)',
-    {
-      appid: z.number().describe('Steam application ID'),
-    },
-    async (params) => {
-      try {
-        const { appid } = params;
-
-        const url = `https://store.steampowered.com/api/appdetails?appids=${appid}`;
-        const response = await fetch(url);
-
-        if (!response.ok) {
-          return {
-            content: [
-              {
-                type: 'text' as const,
-                text: `Steam store API returned status ${response.status}`,
-              },
-            ],
-            isError: true,
-          };
-        }
-
-        const data = (await response.json()) as AppDetailsResponse;
-        const entry = data[String(appid)];
-
-        if (!entry || !entry.success) {
-          return {
-            content: [
-              {
-                type: 'text' as const,
-                text: `No details found for appid ${appid}. The app may not exist or the store page may be restricted.`,
-              },
-            ],
-            isError: true,
-          };
-        }
-
-        const d = entry.data;
-
-        const summary = {
-          name: d.name,
-          type: d.type,
-          steam_appid: d.steam_appid,
-          is_free: d.is_free,
-          short_description: stripHtml(d.short_description || ''),
-          developers: d.developers || [],
-          publishers: d.publishers || [],
-          genres: (d.genres || []).map((g) => g.description),
-          categories: (d.categories || []).map((c) => c.description),
-          release_date: d.release_date,
-          platforms: d.platforms,
-          linux_support: d.platforms?.linux ?? false,
-          price: d.price_overview
-            ? {
-                final_formatted: d.price_overview.final_formatted,
-                discount_percent: d.price_overview.discount_percent,
-                currency: d.price_overview.currency,
-              }
-            : d.is_free
-              ? 'Free'
-              : 'N/A',
-          metacritic: d.metacritic
-            ? { score: d.metacritic.score, url: d.metacritic.url }
-            : null,
-          header_image: d.header_image,
-          website: d.website,
-        };
-
-        return {
-          content: [{ type: 'text' as const, text: JSON.stringify(summary, null, 2) }],
-        };
-      } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return {
-          content: [{ type: 'text' as const, text: `Error fetching game details: ${msg}` }],
-          isError: true,
-        };
-      }
-    },
-  );
+  // get_game_details has been merged into get_game (games.ts) via include_store_details parameter
 
   // -------------------------------------------------------------------------
   // get_game_reviews
   // -------------------------------------------------------------------------
   server.tool(
     'get_game_reviews',
-    'Fetch user reviews for a Steam game, including review summary and individual review texts',
+    'Fetch user reviews and review summary for a game',
     {
       appid: z.number().describe('Steam application ID'),
       filter: z

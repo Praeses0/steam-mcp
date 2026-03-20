@@ -38,7 +38,7 @@ export function registerDiagnosticsTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'parse_compat_log',
-    'Parse the Proton/Wine compatibility log file. Returns the last N lines for debugging compatibility issues.',
+    'Read the Proton/Wine compatibility log for debugging',
     {
       lines: z
         .number()
@@ -114,7 +114,7 @@ export function registerDiagnosticsTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'parse_shader_log',
-    'Parse the shader compilation log file. Returns the last N lines for debugging shader issues.',
+    'Read the shader compilation log for debugging',
     {
       lines: z
         .number()

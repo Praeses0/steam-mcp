@@ -14,9 +14,7 @@ import { registerLaunchTools } from './tools/launch.js';
 import { registerDiagnosticsTools } from './tools/diagnostics.js';
 import { registerMediaTools } from './tools/media.js';
 import { registerNewsTools } from './tools/news.js';
-import { registerSocialTools } from './tools/social.js';
 import { registerStatusTools } from './tools/status.js';
-import { registerAchievementTools } from './tools/achievements.js';
 import { registerHistoryTools } from './tools/history.js';
 import { registerProfileTools } from './tools/profile.js';
 import { registerFriendsApiTools } from './tools/friends-api.js';
@@ -37,36 +35,45 @@ const server = new McpServer({
   version: '1.0.0',
 });
 
-registerGameTools(server);
-registerLibraryTools(server);
-registerStorageTools(server);
-registerCompatTools(server);
-registerConfigTools(server);
-registerWorkshopTools(server);
-registerCacheTools(server);
-registerShortcutTools(server);
-registerSaveTools(server);
-registerLaunchTools(server);
-registerDiagnosticsTools(server);
-registerMediaTools(server);
-registerNewsTools(server);
-registerSocialTools(server);
-registerStatusTools(server);
-registerAchievementTools(server);
-registerHistoryTools(server);
-registerProfileTools(server);
-registerFriendsApiTools(server);
-registerOwnedTools(server);
-registerAchievementsApiTools(server);
-registerStoreApiTools(server);
-registerWishlistTools(server);
-registerDealsTools(server);
-registerValuationTools(server);
-registerInsightsTools(server);
-registerWorkshopSearchTools(server);
-registerExportTools(server);
-registerHowLongToBeatTools(server);
-registerTweaksTools(server);
+// ---------------------------------------------------------------------------
+// Category-based tool filtering via STEAM_TOOLS env var.
+// Set STEAM_TOOLS=core,compat,api to only register those groups.
+// When unset, all categories are registered.
+// ---------------------------------------------------------------------------
+
+const TOOL_CATEGORIES: Record<string, Array<(s: McpServer) => void>> = {
+  core: [registerGameTools, registerLibraryTools, registerStatusTools],
+  storage: [registerStorageTools, registerCacheTools],
+  compat: [registerCompatTools],
+  config: [registerConfigTools],
+  workshop: [registerWorkshopTools],
+  shortcuts: [registerShortcutTools],
+  saves: [registerSaveTools],
+  launch: [registerLaunchTools],
+  diagnostics: [registerDiagnosticsTools],
+  media: [registerMediaTools, registerNewsTools],
+  history: [registerHistoryTools],
+  api: [registerProfileTools, registerFriendsApiTools, registerOwnedTools, registerAchievementsApiTools, registerStoreApiTools, registerWishlistTools],
+  deals: [registerDealsTools, registerValuationTools],
+  insights: [registerInsightsTools],
+  search: [registerWorkshopSearchTools],
+  export: [registerExportTools],
+  hltb: [registerHowLongToBeatTools],
+  tweaks: [registerTweaksTools],
+};
+
+const enabledCategories = process.env.STEAM_TOOLS
+  ? process.env.STEAM_TOOLS.split(',').map(s => s.trim().toLowerCase())
+  : Object.keys(TOOL_CATEGORIES); // all enabled by default
+
+for (const category of enabledCategories) {
+  const registrations = TOOL_CATEGORIES[category];
+  if (registrations) {
+    for (const register of registrations) {
+      register(server);
+    }
+  }
+}
 
 async function main() {
   const transport = new StdioServerTransport();

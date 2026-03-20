@@ -43,7 +43,7 @@ export function registerWorkshopSearchTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'workshop_search',
-    'Search the Steam Workshop for items by keyword for a specific game',
+    'Search Steam Workshop items by keyword for a game',
     {
       appid: z.number().describe('Steam application ID'),
       query: z.string().describe('Search query string'),

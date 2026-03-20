@@ -38,7 +38,7 @@ export function registerHowLongToBeatTools(server: McpServer): void {
   // -------------------------------------------------------------------------
   server.tool(
     'howlongtobeat',
-    'Search HowLongToBeat for estimated game completion times (main story, completionist, etc.)',
+    'Search HowLongToBeat for estimated completion times',
     {
       name: z.string().describe('Game name to search for'),
     },
