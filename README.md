@@ -61,7 +61,8 @@ Get your API key at [steamcommunity.com/dev/apikey](https://steamcommunity.com/d
 
 ### Key Highlights
 
-- **No API key needed** for 50+ tools — reads directly from `~/.local/share/Steam/` local files
+- **Cross-platform** — Linux, macOS, and Windows (Proton tools are Linux-only)
+- **No API key needed** for 50+ tools — reads directly from Steam's local files
 - **Optional API key** unlocks 12 more tools for online data (achievements, friends, full library)
 - **Smart search** — "ck3" finds "Crusader Kings III", "ror2" finds "Risk of Rain 2"
 - **Full play history** — pulls playtime for every game you've ever played from localconfig.vdf, not just installed ones
@@ -83,25 +84,39 @@ Get your API key at [steamcommunity.com/dev/apikey](https://steamcommunity.com/d
 
 > **Note:** Proton/Wine tools (compatibility tracking, prefix inspection, crash logs) are Linux-only. All other tools work cross-platform.
 
-### Setup
+### Quick Start (npx)
 
-```bash
-git clone https://github.com/hna/steam-mcp.git
-cd steam-mcp
-npm install
-npm run build
-```
-
-### Configure with Claude Desktop
-
-Add to your `~/.config/Claude/claude_desktop_config.json`:
+No install needed — just configure your MCP client:
 
 ```json
 {
   "mcpServers": {
     "steam": {
-      "command": "node",
-      "args": ["/path/to/steam-mcp/dist/index.js"],
+      "command": "npx",
+      "args": ["@praeses/steam-mcp"],
+      "env": {
+        "STEAM_API_KEY": "optional-key-here"
+      }
+    }
+  }
+}
+```
+
+> The `STEAM_API_KEY` is optional. All local tools work without it. Only the API-powered tools (achievements, friends, owned games, wishlist, profile) require it. Get your key at [steamcommunity.com/dev/apikey](https://steamcommunity.com/dev/apikey).
+
+### Configure with Claude Desktop
+
+Add to your Claude Desktop config:
+- **Linux**: `~/.config/Claude/claude_desktop_config.json`
+- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+
+```json
+{
+  "mcpServers": {
+    "steam": {
+      "command": "npx",
+      "args": ["@praeses/steam-mcp"],
       "env": {
         "STEAM_API_KEY": "your-key-here"
       }
@@ -118,8 +133,8 @@ Add a `.mcp.json` in your project root:
 {
   "mcpServers": {
     "steam": {
-      "command": "node",
-      "args": ["/path/to/steam-mcp/dist/index.js"],
+      "command": "npx",
+      "args": ["@praeses/steam-mcp"],
       "env": {
         "STEAM_API_KEY": "your-key-here"
       }
@@ -128,7 +143,14 @@ Add a `.mcp.json` in your project root:
 }
 ```
 
-> The `STEAM_API_KEY` is optional. All local tools work without it. Only the API-powered tools (achievements, friends, owned games, wishlist, profile) require it.
+### Install from source
+
+```bash
+git clone https://github.com/Praeses0/steam-mcp.git
+cd steam-mcp
+npm install
+npm run build
+```
 
 ## Development
 
