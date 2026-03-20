@@ -1,10 +1,9 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { readAllManifests } from '../steam/manifests.js';
-import { getLocalConfig, getPlaytime } from '../steam/userdata.js';
+import { getPlaytime, getAllPlaytimes, getAppLaunchOptions } from '../steam/userdata.js';
 import { getGameProtonVersion, getCompatDataSize } from '../steam/compat.js';
 import { readWorkshopManifest } from '../steam/workshop.js';
-import { getLibraryFolders } from '../steam/paths.js';
 import { formatBytes, formatPlaytime, formatTimestamp } from '../util/format.js';
 import type { AppManifest } from '../steam/types.js';
 
@@ -127,6 +126,9 @@ export function registerGameTools(server: McpServer): void {
           );
         }
 
+        // Build playtime map for sorting
+        const playtimeMap = new Map(getAllPlaytimes().map(p => [p.appid, p.playtime]));
+
         // Sort
         const order = params.sort_order === 'desc' ? -1 : 1;
         games.sort((a, b) => {
@@ -136,7 +138,7 @@ export function registerGameTools(server: McpServer): void {
             case 'last_played':
               return (a.lastPlayed - b.lastPlayed) * order;
             case 'playtime':
-              return (a.lastPlayed - b.lastPlayed) * order; // best proxy from manifest
+              return ((playtimeMap.get(a.appid) ?? 0) - (playtimeMap.get(b.appid) ?? 0)) * order;
             case 'name':
             default:
               return a.name.localeCompare(b.name) * order;
@@ -219,36 +221,19 @@ export function registerGameTools(server: McpServer): void {
 
         // Merge user data (launch options, playtime)
         try {
-          const localConfig = getLocalConfig();
-          const appsSection =
-            (localConfig as Record<string, unknown>)?.['UserLocalConfigStore'];
-          if (appsSection && typeof appsSection === 'object') {
-            const software = (appsSection as Record<string, unknown>)['Software'];
-            if (software && typeof software === 'object') {
-              const valve = (software as Record<string, unknown>)['Valve'];
-              if (valve && typeof valve === 'object') {
-                const steam = (valve as Record<string, unknown>)['Steam'];
-                if (steam && typeof steam === 'object') {
-                  const apps = (steam as Record<string, unknown>)['apps'];
-                  if (apps && typeof apps === 'object') {
-                    const appConfig = (apps as Record<string, unknown>)[String(params.appid)];
-                    if (appConfig && typeof appConfig === 'object') {
-                      const cfg = appConfig as Record<string, unknown>;
-                      game.launchOptions = cfg['LaunchOptions'] ?? cfg['launchoptions'] ?? '';
-                    }
-                  }
-                }
-              }
-            }
+          const launchOpts = getAppLaunchOptions(params.appid);
+          if (launchOpts) {
+            game.launchOptions = launchOpts;
           }
+        } catch { /* userdata may not be available */ }
+
+        try {
           const playtimeInfo = getPlaytime(params.appid);
           if (playtimeInfo) {
             game.playtime = formatPlaytime(playtimeInfo.playtime);
             game.playtimeMinutes = playtimeInfo.playtime;
           }
-        } catch {
-          // userdata may not be available
-        }
+        } catch { /* userdata may not be available */ }
 
         // Proton / compatibility info
         try {

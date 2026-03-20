@@ -1,28 +1,13 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { steamApiRequest, hasApiKey } from '../steam/api.js';
+import { steamApiRequest } from '../steam/api.js';
 import { getUserConfig } from '../steam/paths.js';
 import { formatPlaytime } from '../util/format.js';
+import type { OwnedGamesResponse } from '../steam/api-types.js';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
-
-interface OwnedGame {
-  appid: number;
-  name: string;
-  playtime_forever: number;
-  playtime_2weeks?: number;
-  img_icon_url: string;
-  has_community_visible_stats?: boolean;
-}
-
-interface OwnedGamesResponse {
-  response: {
-    game_count: number;
-    games: OwnedGame[];
-  };
-}
 
 interface RecentGame {
   appid: number;

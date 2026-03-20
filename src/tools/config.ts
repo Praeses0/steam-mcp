@@ -1,24 +1,11 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { execSync } from 'node:child_process';
 import {
   getLocalConfig,
   getAppLaunchOptions,
   setAppLaunchOptions,
 } from '../steam/userdata.js';
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function isSteamRunning(): boolean {
-  try {
-    execSync('pgrep -x steam', { stdio: 'ignore' });
-    return true;
-  } catch {
-    return false;
-  }
-}
+import { isSteamRunning } from '../steam/paths.js';
 
 // ---------------------------------------------------------------------------
 // Registration

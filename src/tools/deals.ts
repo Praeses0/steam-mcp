@@ -1,6 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { getUserConfig } from '../steam/paths.js';
+import { fetchAllWishlistPages } from '../steam/wishlist.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -46,27 +47,6 @@ interface AppDetailsBasicResponse {
   };
 }
 
-interface WishlistItem {
-  name: string;
-  review_desc: string;
-  free: boolean;
-  is_free_game: boolean;
-  subs: Array<{
-    id: number;
-    discount_block: string;
-    discount_pct: number;
-    price: string;
-  }>;
-}
-
-interface WishlistResponse {
-  [appid: string]: WishlistItem;
-}
-
-interface WishlistErrorResponse {
-  success: number;
-}
-
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -87,33 +67,6 @@ async function searchStoreByName(name: string): Promise<StoreSearchItem | null> 
   }
 
   return data.items[0];
-}
-
-/** Fetch a single wishlist page. Returns null if the page is empty or an error. */
-async function fetchWishlistPage(
-  steamid: string,
-  page: number,
-): Promise<WishlistResponse | null> {
-  const url = `https://store.steampowered.com/wishlist/profiles/${steamid}/wishlistdata/?p=${page}`;
-  const response = await fetch(url);
-
-  if (!response.ok) {
-    return null;
-  }
-
-  const data = (await response.json()) as WishlistResponse | WishlistErrorResponse;
-
-  // Steam returns { success: 2 } when the wishlist is private or no more pages
-  if ('success' in data && (data as WishlistErrorResponse).success === 2) {
-    return null;
-  }
-
-  // Empty object means no more pages
-  if (Object.keys(data).length === 0) {
-    return null;
-  }
-
-  return data as WishlistResponse;
 }
 
 // ---------------------------------------------------------------------------
@@ -288,22 +241,9 @@ export function registerDealsTools(server: McpServer): void {
           steamid = userConfig.steamId64;
         }
 
-        // Fetch first 3 pages in parallel (covers up to ~300 items)
-        const pages = await Promise.all([
-          fetchWishlistPage(steamid, 0),
-          fetchWishlistPage(steamid, 1),
-          fetchWishlistPage(steamid, 2),
-        ]);
+        const allItems = await fetchAllWishlistPages(steamid);
 
-        // Merge all pages into a single map
-        const allItems: Record<string, WishlistItem> = {};
-        for (const page of pages) {
-          if (page) {
-            Object.assign(allItems, page);
-          }
-        }
-
-        const totalItems = Object.keys(allItems).length;
+        const totalItems = allItems.length;
 
         if (totalItems === 0) {
           return {
@@ -317,19 +257,19 @@ export function registerDealsTools(server: McpServer): void {
         }
 
         // Filter to items that have a discount
-        const deals = Object.entries(allItems)
-          .filter(([, item]) => {
+        const deals = allItems
+          .filter((item) => {
             if (item.free || item.is_free_game) return false;
             return item.subs && item.subs.some((sub) => sub.discount_pct > 0);
           })
-          .map(([appid, item]) => {
+          .map((item) => {
             // Find the sub with the best discount
             const bestSub = item.subs
               .filter((sub) => sub.discount_pct > 0)
               .sort((a, b) => b.discount_pct - a.discount_pct)[0];
 
             return {
-              appid: Number(appid),
+              appid: item.appid,
               name: item.name,
               discount_percent: bestSub.discount_pct,
               price: bestSub.price,

@@ -2,56 +2,14 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import fs from 'node:fs';
 import path from 'node:path';
-import { execSync, spawn } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { readAllManifests } from '../steam/manifests.js';
 import { getLibraries } from '../steam/library.js';
-import { getGameProtonVersion, getInstalledProtonVersions } from '../steam/compat.js';
+import { getAllProtonVersionMappings, getInstalledProtonVersions } from '../steam/compat.js';
 import { readWorkshopManifest } from '../steam/workshop.js';
-import { getSteamDir, getUserDataDir, getUserConfig } from '../steam/paths.js';
+import { getSteamDir, getUserDataDir, getUserConfig, isSteamRunning } from '../steam/paths.js';
 import { formatBytes } from '../util/format.js';
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/**
- * Recursively calculate the total size of a directory in bytes.
- * Returns 0 if the directory does not exist or is inaccessible.
- */
-function getDirSize(dirPath: string): number {
-  try {
-    const stat = fs.statSync(dirPath);
-    if (!stat.isDirectory()) {
-      return stat.size;
-    }
-  } catch {
-    return 0;
-  }
-
-  let total = 0;
-  try {
-    const entries = fs.readdirSync(dirPath, { withFileTypes: true });
-    for (const entry of entries) {
-      const fullPath = path.join(dirPath, entry.name);
-      try {
-        if (entry.isDirectory()) {
-          total += getDirSize(fullPath);
-        } else if (entry.isFile() || entry.isSymbolicLink()) {
-          try {
-            total += fs.statSync(fullPath).size;
-          } catch {
-            // skip inaccessible files
-          }
-        }
-      } catch {
-        // skip entries that can't be accessed
-      }
-    }
-  } catch {
-    // directory unreadable
-  }
-  return total;
-}
+import { getDirSize } from '../util/fs.js';
 
 /**
  * List appid subdirectories in a given directory.
@@ -398,16 +356,13 @@ export function registerStorageTools(server: McpServer): void {
             size: formatBytes(m.sizeOnDisk),
           }));
 
-        // 4. Proton versions not used by any game
+        // 4. Proton versions not used by any game — parse config.vdf once
+        const protonMappings = getAllProtonVersionMappings();
         const usedProtonVersions = new Set<string>();
         for (const m of manifests) {
-          try {
-            const version = getGameProtonVersion(m.appid);
-            if (version) {
-              usedProtonVersions.add(version);
-            }
-          } catch {
-            // skip
+          const version = protonMappings[m.appid];
+          if (version) {
+            usedProtonVersions.add(version);
           }
         }
 
@@ -487,9 +442,7 @@ export function registerStorageTools(server: McpServer): void {
     async (params) => {
       try {
         // Check Steam is running
-        try {
-          execSync('pgrep -x steam', { stdio: 'ignore' });
-        } catch {
+        if (!isSteamRunning()) {
           return {
             content: [
               {

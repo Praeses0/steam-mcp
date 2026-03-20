@@ -6,41 +6,9 @@ import { readAllManifests } from '../steam/manifests.js';
 import { getLibraries } from '../steam/library.js';
 import { getSteamDir } from '../steam/paths.js';
 import { formatBytes } from '../util/format.js';
+import { getDirSize } from '../util/fs.js';
 import { parseVdf } from '../vdf/parser.js';
 import type { VdfObject } from '../vdf/types.js';
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function getDirSize(dirPath: string): number {
-  try {
-    const stat = fs.statSync(dirPath);
-    if (!stat.isDirectory()) return stat.size;
-  } catch {
-    return 0;
-  }
-
-  let total = 0;
-  try {
-    const entries = fs.readdirSync(dirPath, { withFileTypes: true });
-    for (const entry of entries) {
-      const fullPath = path.join(dirPath, entry.name);
-      try {
-        if (entry.isDirectory()) {
-          total += getDirSize(fullPath);
-        } else if (entry.isFile() || entry.isSymbolicLink()) {
-          total += fs.statSync(fullPath).size;
-        }
-      } catch {
-        // skip
-      }
-    }
-  } catch {
-    // unreadable
-  }
-  return total;
-}
 
 // ---------------------------------------------------------------------------
 // Registration

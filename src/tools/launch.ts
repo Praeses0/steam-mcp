@@ -1,20 +1,8 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
-import { execSync, spawn } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { readAllManifests } from '../steam/manifests.js';
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function isSteamRunning(): boolean {
-  try {
-    execSync('pgrep -x steam', { stdio: 'ignore' });
-    return true;
-  } catch {
-    return false;
-  }
-}
+import { isSteamRunning } from '../steam/paths.js';
 
 // ---------------------------------------------------------------------------
 // Registration

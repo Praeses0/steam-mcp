@@ -1,14 +1,46 @@
 {
   "name": "steam-mcp",
   "version": "1.0.0",
-  "description": "MCP server for Steam game library management via local files",
+  "description": "MCP server for Steam game library management on Linux — 74 tools, local files + optional API",
   "type": "module",
   "main": "dist/index.js",
+  "bin": {
+    "steam-mcp": "dist/index.js"
+  },
   "scripts": {
     "build": "tsc",
     "dev": "tsx src/index.ts",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "steam",
+    "mcp",
+    "model-context-protocol",
+    "linux-gaming",
+    "proton",
+    "valve",
+    "game-library",
+    "claude",
+    "ai-tools"
+  ],
+  "author": "Praeses0",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Praeses0/steam-mcp.git"
+  },
+  "homepage": "https://github.com/Praeses0/steam-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/Praeses0/steam-mcp/issues"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.11.0",

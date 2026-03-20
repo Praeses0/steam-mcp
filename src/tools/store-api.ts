@@ -242,7 +242,7 @@ export function registerStoreApiTools(server: McpServer): void {
         const reviews = (data.reviews || []).map((r) => ({
           voted_up: r.voted_up,
           review: r.review.length > 500 ? r.review.slice(0, 500) + '...' : r.review,
-          playtime_at_review: formatPlaytime(Math.round(r.author.playtime_at_review / 60)),
+          playtime_at_review: formatPlaytime(r.author.playtime_at_review),
           timestamp: formatTimestamp(r.timestamp_created),
           votes_up: r.votes_up,
           votes_funny: r.votes_funny,

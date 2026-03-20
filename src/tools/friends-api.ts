@@ -3,6 +3,8 @@ import { z } from 'zod';
 import { steamApiRequest } from '../steam/api.js';
 import { getUserConfig } from '../steam/paths.js';
 import { formatTimestamp } from '../util/format.js';
+import { PERSONA_STATES } from '../steam/api-types.js';
+import type { PlayerSummary, PlayerSummariesResponse } from '../steam/api-types.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -20,36 +22,9 @@ interface FriendListResponse {
   };
 }
 
-interface PlayerSummary {
-  steamid: string;
-  personaname: string;
-  personastate: number;
-  gameextrainfo?: string;
-  gameid?: string;
-  avatar: string;
-  profileurl: string;
-  lastlogoff: number;
-}
-
-interface PlayerSummariesResponse {
-  response: {
-    players: PlayerSummary[];
-  };
-}
-
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-const PERSONA_STATES: Record<number, string> = {
-  0: 'Offline',
-  1: 'Online',
-  2: 'Busy',
-  3: 'Away',
-  4: 'Snooze',
-  5: 'Looking to trade',
-  6: 'Looking to play',
-};
 
 function resolveDefaultSteamId(steamid?: string): string {
   if (steamid) return steamid;

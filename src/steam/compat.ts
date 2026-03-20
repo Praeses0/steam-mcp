@@ -3,6 +3,7 @@ import path from 'node:path';
 import { parseVdf } from '../vdf/parser.js';
 import type { VdfObject } from '../vdf/types.js';
 import { getSteamDir, getLibraryFolders } from './paths.js';
+import { getDirSize } from '../util/fs.js';
 
 /**
  * Read compatibility tool overrides from the Steam config.
@@ -61,7 +62,7 @@ export function getCompatDataSize(libraryPath: string, appid: number): number {
     return 0;
   }
 
-  return getDirectorySize(compatDir);
+  return getDirSize(compatDir);
 }
 
 /**
@@ -88,7 +89,7 @@ export function getInstalledProtonVersions(): { name: string; path: string; size
           results.push({
             name: entry.name,
             path: toolPath,
-            size: getDirectorySize(toolPath),
+            size: getDirSize(toolPath),
           });
         }
       }
@@ -111,7 +112,7 @@ export function getInstalledProtonVersions(): { name: string; path: string; size
           results.push({
             name: entry.name,
             path: toolPath,
-            size: getDirectorySize(toolPath),
+            size: getDirSize(toolPath),
           });
         }
       }
@@ -138,6 +139,25 @@ export function getGameProtonVersion(appid: number): string | null {
   return null;
 }
 
+/**
+ * Get all Proton/compatibility tool version mappings at once.
+ *
+ * Parses config.vdf a single time and returns a map of appid -> tool name.
+ * Use this instead of calling getGameProtonVersion() per game in a loop.
+ *
+ * @returns A record mapping appid to the configured compatibility tool name.
+ */
+export function getAllProtonVersionMappings(): Record<number, string> {
+  const overrides = getCompatOverrides();
+  const result: Record<number, string> = {};
+  for (const [appid, override] of Object.entries(overrides)) {
+    if (override.dest) {
+      result[Number(appid)] = override.dest;
+    }
+  }
+  return result;
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -161,34 +181,4 @@ function navigateVdf(obj: VdfObject, ...keys: string[]): VdfObject | undefined {
     current = found[1] as VdfObject;
   }
   return current;
-}
-
-/**
- * Recursively calculate the total size of all files in a directory.
- */
-function getDirectorySize(dirPath: string): number {
-  let total = 0;
-
-  let entries: fs.Dirent[];
-  try {
-    entries = fs.readdirSync(dirPath, { withFileTypes: true });
-  } catch {
-    return 0;
-  }
-
-  for (const entry of entries) {
-    const fullPath = path.join(dirPath, entry.name);
-    try {
-      if (entry.isDirectory()) {
-        total += getDirectorySize(fullPath);
-      } else if (entry.isFile() || entry.isSymbolicLink()) {
-        const stat = fs.statSync(fullPath);
-        total += stat.size;
-      }
-    } catch {
-      // Skip files we can't stat (permission issues, broken symlinks, etc.)
-    }
-  }
-
-  return total;
 }

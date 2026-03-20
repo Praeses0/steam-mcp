@@ -3,24 +3,11 @@ import { z } from 'zod';
 import { steamApiRequest } from '../steam/api.js';
 import { getUserConfig } from '../steam/paths.js';
 import { formatPlaytime } from '../util/format.js';
+import type { OwnedGamesResponse } from '../steam/api-types.js';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
-
-interface OwnedGame {
-  appid: number;
-  name: string;
-  playtime_forever: number;
-  img_icon_url: string;
-}
-
-interface OwnedGamesResponse {
-  response: {
-    game_count: number;
-    games: OwnedGame[];
-  };
-}
 
 interface PriceOverview {
   currency: string;

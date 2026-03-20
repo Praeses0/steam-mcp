@@ -6,25 +6,11 @@ import { steamApiRequest } from '../steam/api.js';
 import { getUserConfig } from '../steam/paths.js';
 import { getAllPlaytimes } from '../steam/userdata.js';
 import { formatPlaytime, formatTimestamp } from '../util/format.js';
+import type { OwnedGamesResponse } from '../steam/api-types.js';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
-
-interface OwnedGame {
-  appid: number;
-  name: string;
-  playtime_forever: number;
-  playtime_2weeks?: number;
-  img_icon_url: string;
-}
-
-interface OwnedGamesResponse {
-  response: {
-    game_count: number;
-    games: OwnedGame[];
-  };
-}
 
 interface PlayerAchievement {
   apiname: string;

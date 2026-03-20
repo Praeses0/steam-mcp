@@ -2,7 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { getLibraries } from '../steam/library.js';
 import { readAllManifests } from '../steam/manifests.js';
-import { getPlaytime } from '../steam/userdata.js';
+import { getAllPlaytimes } from '../steam/userdata.js';
 import { formatBytes, formatPlaytime, formatTimestamp } from '../util/format.js';
 
 export function registerLibraryTools(server: McpServer): void {
@@ -97,17 +97,12 @@ export function registerLibraryTools(server: McpServer): void {
             size: formatBytes(m.sizeOnDisk),
           }));
 
-        // Total playtime (best effort)
+        // Total playtime (best effort) — parse localconfig.vdf once
+        const allPlaytimes = getAllPlaytimes();
+        const playtimeMap = new Map(allPlaytimes.map(p => [p.appid, p.playtime]));
         let totalPlaytimeMinutes = 0;
         for (const m of manifests) {
-          try {
-            const pt = getPlaytime(m.appid);
-            if (pt) {
-              totalPlaytimeMinutes += pt.playtime;
-            }
-          } catch {
-            // skip
-          }
+          totalPlaytimeMinutes += playtimeMap.get(m.appid) ?? 0;
         }
 
         const output = {

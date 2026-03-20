@@ -3,56 +3,11 @@ import { z } from 'zod';
 import fs from 'node:fs';
 import path from 'node:path';
 import { readAllManifests } from '../steam/manifests.js';
-import { getGameProtonVersion, getCompatDataSize, getCompatOverrides, getInstalledProtonVersions } from '../steam/compat.js';
+import { getGameProtonVersion, getCompatDataSize, getCompatOverrides, getInstalledProtonVersions, getAllProtonVersionMappings } from '../steam/compat.js';
 import { getLibraries } from '../steam/library.js';
 import { getSteamDir, getLibraryFolders } from '../steam/paths.js';
 import { formatBytes } from '../util/format.js';
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function countFiles(dirPath: string): number {
-  let count = 0;
-  try {
-    const entries = fs.readdirSync(dirPath, { withFileTypes: true });
-    for (const entry of entries) {
-      const fullPath = path.join(dirPath, entry.name);
-      if (entry.isFile()) count++;
-      else if (entry.isDirectory()) count += countFiles(fullPath);
-    }
-  } catch { /* skip */ }
-  return count;
-}
-
-function getDirSize(dirPath: string): number {
-  try {
-    const stat = fs.statSync(dirPath);
-    if (!stat.isDirectory()) return stat.size;
-  } catch {
-    return 0;
-  }
-
-  let total = 0;
-  try {
-    const entries = fs.readdirSync(dirPath, { withFileTypes: true });
-    for (const entry of entries) {
-      const fullPath = path.join(dirPath, entry.name);
-      try {
-        if (entry.isDirectory()) {
-          total += getDirSize(fullPath);
-        } else if (entry.isFile() || entry.isSymbolicLink()) {
-          total += fs.statSync(fullPath).size;
-        }
-      } catch {
-        // skip
-      }
-    }
-  } catch {
-    // unreadable
-  }
-  return total;
-}
+import { getDirSize, countFiles } from '../util/fs.js';
 
 // ---------------------------------------------------------------------------
 // Registration
@@ -118,15 +73,14 @@ export function registerCompatTools(server: McpServer): void {
           prefixSize: string;
         }> = [];
 
+        // Parse config.vdf once to get all proton version mappings
+        const protonMappings = getAllProtonVersionMappings();
+
         for (const appid of protonAppids) {
-          let protonVersion = 'Unknown';
+          let protonVersion = protonMappings[appid] ?? 'Unknown';
           let prefixSize = 0;
 
           try {
-            const version = getGameProtonVersion(appid);
-            if (version) {
-              protonVersion = version;
-            }
             // Find the library containing this game for prefix size
             const manifest = manifests.find((m) => m.appid === appid);
             if (manifest) {
@@ -238,22 +192,19 @@ export function registerCompatTools(server: McpServer): void {
           nameMap.set(m.appid, m.name);
         }
 
-        // Build map: proton version -> list of games using it
+        // Build map: proton version -> list of games using it — parse config.vdf once
+        const protonMappings = getAllProtonVersionMappings();
         const versionUsage = new Map<string, Array<{ appid: number; name: string }>>();
         for (const m of manifests) {
-          try {
-            const ver = getGameProtonVersion(m.appid);
-            if (ver) {
-              if (!versionUsage.has(ver)) {
-                versionUsage.set(ver, []);
-              }
-              versionUsage.get(ver)!.push({
-                appid: m.appid,
-                name: m.name,
-              });
+          const ver = protonMappings[m.appid];
+          if (ver) {
+            if (!versionUsage.has(ver)) {
+              versionUsage.set(ver, []);
             }
-          } catch {
-            // skip
+            versionUsage.get(ver)!.push({
+              appid: m.appid,
+              name: m.name,
+            });
           }
         }
 
