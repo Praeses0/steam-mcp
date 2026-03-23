@@ -1,7 +1,7 @@
 {
   "name": "@praeses/steam-mcp",
-  "version": "1.1.0",
-  "description": "MCP server for Steam game library management on Linux — 74 tools, local files + optional API",
+  "version": "2.0.0",
+  "description": "MCP server for Steam game library management — 14 consolidated tools, minimal context footprint, local files + optional API",
   "type": "module",
   "main": "dist/index.js",
   "bin": {

@@ -33,99 +33,71 @@ function readLastLines(filePath: string, lineCount: number): string {
 // ---------------------------------------------------------------------------
 
 export function registerDiagnosticsTools(server: McpServer): void {
-  // -------------------------------------------------------------------------
-  // parse_compat_log
-  // -------------------------------------------------------------------------
   server.tool(
-    'parse_compat_log',
-    'Read the Proton/Wine compatibility log for debugging',
+    'diagnostics',
+    'Parse Proton compat or shader logs',
     {
-      lines: z
-        .number()
-        .default(100)
-        .describe('Number of lines to read from the end of the log'),
+      action: z.enum(['compat_log', 'shader_log']),
+      appid: z.number().optional(),
+      lines: z.number().optional(),
     },
     async (params) => {
       try {
         const steamPath = getSteamDir();
+        const lineCount = params.lines ?? 100;
 
-        // Common compat log locations
-        const candidates = [
-          path.join(steamPath, 'logs', 'compat_log.txt'),
-          path.join(steamPath, 'logs', 'compat_log.previous.txt'),
-          path.join(steamPath, 'logs', 'compatibility_log.txt'),
-        ];
+        if (params.action === 'compat_log') {
+          // Common compat log locations
+          const candidates = [
+            path.join(steamPath, 'logs', 'compat_log.txt'),
+            path.join(steamPath, 'logs', 'compat_log.previous.txt'),
+            path.join(steamPath, 'logs', 'compatibility_log.txt'),
+          ];
 
-        let logContent: string | null = null;
-        let usedPath: string | null = null;
+          let logContent: string | null = null;
+          let usedPath: string | null = null;
 
-        for (const candidate of candidates) {
-          try {
-            fs.accessSync(candidate, fs.constants.R_OK);
-            logContent = readLastLines(candidate, params.lines);
-            usedPath = candidate;
-            break;
-          } catch {
-            continue;
+          for (const candidate of candidates) {
+            try {
+              fs.accessSync(candidate, fs.constants.R_OK);
+              logContent = readLastLines(candidate, lineCount);
+              usedPath = candidate;
+              break;
+            } catch {
+              continue;
+            }
           }
-        }
 
-        if (!logContent || !usedPath) {
+          if (!logContent || !usedPath) {
+            return {
+              content: [
+                {
+                  type: 'text' as const,
+                  text: [
+                    'No compatibility log file found.',
+                    'Searched locations:',
+                    ...candidates.map((c) => `  - ${c}`),
+                    '',
+                    'The compat log is created when running games under Proton/Wine.',
+                  ].join('\n'),
+                },
+              ],
+            };
+          }
+
+          const output = [
+            `Compatibility log: ${usedPath}`,
+            `Showing last ${lineCount} lines:`,
+            '---',
+            logContent,
+          ].join('\n');
+
           return {
-            content: [
-              {
-                type: 'text' as const,
-                text: [
-                  'No compatibility log file found.',
-                  'Searched locations:',
-                  ...candidates.map((c) => `  - ${c}`),
-                  '',
-                  'The compat log is created when running games under Proton/Wine.',
-                ].join('\n'),
-              },
-            ],
+            content: [{ type: 'text' as const, text: output }],
           };
         }
 
-        const output = [
-          `Compatibility log: ${usedPath}`,
-          `Showing last ${params.lines} lines:`,
-          '---',
-          logContent,
-        ].join('\n');
-
-        return {
-          content: [{ type: 'text' as const, text: output }],
-        };
-      } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return {
-          content: [
-            { type: 'text' as const, text: `Error parsing compat log: ${msg}` },
-          ],
-          isError: true,
-        };
-      }
-    },
-  );
-
-  // -------------------------------------------------------------------------
-  // parse_shader_log
-  // -------------------------------------------------------------------------
-  server.tool(
-    'parse_shader_log',
-    'Read the shader compilation log for debugging',
-    {
-      lines: z
-        .number()
-        .default(100)
-        .describe('Number of lines to read from the end of the log'),
-    },
-    async (params) => {
-      try {
-        const steamPath = getSteamDir();
-
-        // Common shader log locations
+        // action === 'shader_log'
         const candidates = [
           path.join(steamPath, 'logs', 'shader_log.txt'),
           path.join(steamPath, 'logs', 'shader_log.previous.txt'),
@@ -139,7 +111,7 @@ export function registerDiagnosticsTools(server: McpServer): void {
         for (const candidate of candidates) {
           try {
             fs.accessSync(candidate, fs.constants.R_OK);
-            logContent = readLastLines(candidate, params.lines);
+            logContent = readLastLines(candidate, lineCount);
             usedPath = candidate;
             break;
           } catch {
@@ -166,7 +138,7 @@ export function registerDiagnosticsTools(server: McpServer): void {
 
         const output = [
           `Shader log: ${usedPath}`,
-          `Showing last ${params.lines} lines:`,
+          `Showing last ${lineCount} lines:`,
           '---',
           logContent,
         ].join('\n');
@@ -178,7 +150,7 @@ export function registerDiagnosticsTools(server: McpServer): void {
         const msg = error instanceof Error ? error.message : String(error);
         return {
           content: [
-            { type: 'text' as const, text: `Error parsing shader log: ${msg}` },
+            { type: 'text' as const, text: `Error parsing log: ${msg}` },
           ],
           isError: true,
         };

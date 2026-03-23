@@ -55,214 +55,200 @@ function decodeStateFlags(flags: number): string[] {
 // ---------------------------------------------------------------------------
 
 export function registerStatusTools(server: McpServer): void {
-  // -------------------------------------------------------------------------
-  // steam_status
-  // -------------------------------------------------------------------------
   server.tool(
     'steam_status',
-    'Check if Steam is running and get current user info',
-    {},
-    async () => {
-      try {
-        const running = isSteamRunning();
-
-        let user: { accountName: string; personaName: string; steamId64: string } | null = null;
-        try {
-          const config = getUserConfig();
-          user = {
-            accountName: config.accountName,
-            personaName: config.personaName,
-            steamId64: config.steamId64,
-          };
-        } catch {
-          // user config may not be available
-        }
-
-        let gameCount = 0;
-        try {
-          const manifests = await readAllManifests();
-          gameCount = manifests.length;
-        } catch {
-          // manifests may not be readable
-        }
-
-        const output = {
-          steamRunning: running,
-          currentUser: user,
-          installedGames: gameCount,
-        };
-
-        return {
-          content: [{ type: 'text' as const, text: JSON.stringify(output, null, 2) }],
-        };
-      } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return {
-          content: [{ type: 'text' as const, text: `Error checking Steam status: ${msg}` }],
-          isError: true,
-        };
-      }
-    },
-  );
-
-  // -------------------------------------------------------------------------
-  // get_download_queue
-  // -------------------------------------------------------------------------
-  server.tool(
-    'get_download_queue',
-    'Check for active downloads or updates in progress',
-    {},
-    async () => {
-      try {
-        const manifests = await readAllManifests();
-
-        // stateFlags === 4 means fully installed and normal — filter those out
-        const nonNormal = manifests.filter((m) => m.stateFlags !== 4);
-
-        const items = nonNormal.map((m) => ({
-          appid: m.appid,
-          name: m.name,
-          stateFlags: m.stateFlags,
-          states: decodeStateFlags(m.stateFlags),
-          libraryPath: m.libraryPath,
-        }));
-
-        const output = {
-          totalInstalled: manifests.length,
-          nonNormalCount: items.length,
-          games: items,
-        };
-
-        return {
-          content: [{ type: 'text' as const, text: JSON.stringify(output, null, 2) }],
-        };
-      } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return {
-          content: [{ type: 'text' as const, text: `Error checking download queue: ${msg}` }],
-          isError: true,
-        };
-      }
-    },
-  );
-
-  // -------------------------------------------------------------------------
-  // download_progress
-  // -------------------------------------------------------------------------
-  server.tool(
-    'download_progress',
-    'Check download/update progress for games',
+    'Steam client status, download queue, or download progress',
     {
-      appid: z.number().optional().describe('Check a specific game, or omit for all active downloads'),
+      action: z.enum(['status', 'queue', 'progress']).default('status'),
+      appid: z.number().optional(),
     },
     async (params) => {
-      try {
-        const folders = getLibraryFolders();
-
-        interface DownloadInfo {
-          appid: number;
-          name: string;
-          stateFlags: number;
-          states: string[];
-          bytesToDownload: number;
-          bytesDownloaded: number;
-          bytesToStage: number;
-          bytesStaged: number;
-          downloadProgress: string;
-          stageProgress: string;
-          overallProgress: string;
-          libraryPath: string;
-        }
-
-        const results: DownloadInfo[] = [];
-
-        for (const folder of folders) {
-          const steamapps = path.join(folder, 'steamapps');
-          if (!fs.existsSync(steamapps)) continue;
-
-          let entries: string[];
+      switch (params.action) {
+        case 'status': {
           try {
-            entries = fs.readdirSync(steamapps);
-          } catch {
-            continue;
-          }
+            const running = isSteamRunning();
 
-          for (const entry of entries) {
-            if (!entry.startsWith('appmanifest_') || !entry.endsWith('.acf')) continue;
-
-            const manifestPath = path.join(steamapps, entry);
+            let user: { accountName: string; personaName: string; steamId64: string } | null = null;
             try {
-              // Read fresh — don't use cache since download bytes change rapidly
-              const content = fs.readFileSync(manifestPath, 'utf-8');
-              const parsed = parseVdf(content);
-              const state = (parsed['AppState'] ?? parsed) as VdfObject;
-
-              const appid = parseInt(String(state['appid'] ?? '0'), 10);
-              const flags = parseInt(String(state['StateFlags'] ?? '0'), 10);
-
-              // If filtering by appid, skip non-matching
-              if (params.appid !== undefined && appid !== params.appid) continue;
-
-              // If no appid filter, only show non-fully-installed games
-              if (params.appid === undefined && flags === 4) continue;
-
-              const bytesToDownload = parseInt(String(state['BytesToDownload'] ?? '0'), 10);
-              const bytesDownloaded = parseInt(String(state['BytesDownloaded'] ?? '0'), 10);
-              const bytesToStage = parseInt(String(state['BytesToStage'] ?? '0'), 10);
-              const bytesStaged = parseInt(String(state['BytesStaged'] ?? '0'), 10);
-
-              const dlPct = bytesToDownload > 0
-                ? ((bytesDownloaded / bytesToDownload) * 100).toFixed(1) + '%'
-                : 'N/A';
-              const stagePct = bytesToStage > 0
-                ? ((bytesStaged / bytesToStage) * 100).toFixed(1) + '%'
-                : 'N/A';
-
-              // Overall = weighted average of download + staging
-              const totalBytes = bytesToDownload + bytesToStage;
-              const doneBytes = bytesDownloaded + bytesStaged;
-              const overallPct = totalBytes > 0
-                ? ((doneBytes / totalBytes) * 100).toFixed(1) + '%'
-                : flags === 4 ? '100%' : 'N/A';
-
-              results.push({
-                appid,
-                name: String(state['name'] ?? `Unknown (${appid})`),
-                stateFlags: flags,
-                states: decodeStateFlags(flags),
-                bytesToDownload,
-                bytesDownloaded,
-                bytesToStage,
-                bytesStaged,
-                downloadProgress: `${formatBytes(bytesDownloaded)} / ${formatBytes(bytesToDownload)} (${dlPct})`,
-                stageProgress: `${formatBytes(bytesStaged)} / ${formatBytes(bytesToStage)} (${stagePct})`,
-                overallProgress: overallPct,
-                libraryPath: folder,
-              });
+              const config = getUserConfig();
+              user = {
+                accountName: config.accountName,
+                personaName: config.personaName,
+                steamId64: config.steamId64,
+              };
             } catch {
-              // skip unreadable manifests
+              // user config may not be available
             }
+
+            let gameCount = 0;
+            try {
+              const manifests = await readAllManifests();
+              gameCount = manifests.length;
+            } catch {
+              // manifests may not be readable
+            }
+
+            const output = {
+              steamRunning: running,
+              currentUser: user,
+              installedGames: gameCount,
+            };
+
+            return {
+              content: [{ type: 'text' as const, text: JSON.stringify(output, null, 2) }],
+            };
+          } catch (error) {
+            const msg = error instanceof Error ? error.message : String(error);
+            return {
+              content: [{ type: 'text' as const, text: `Error checking Steam status: ${msg}` }],
+              isError: true,
+            };
           }
         }
 
-        if (results.length === 0) {
-          const msg = params.appid !== undefined
-            ? `No manifest found for appid ${params.appid}, or it is fully installed.`
-            : 'No active downloads or updates.';
-          return {
-            content: [{ type: 'text' as const, text: msg }],
-          };
+        case 'queue': {
+          try {
+            const manifests = await readAllManifests();
+
+            // stateFlags === 4 means fully installed and normal — filter those out
+            const nonNormal = manifests.filter((m) => m.stateFlags !== 4);
+
+            const items = nonNormal.map((m) => ({
+              appid: m.appid,
+              name: m.name,
+              stateFlags: m.stateFlags,
+              states: decodeStateFlags(m.stateFlags),
+              libraryPath: m.libraryPath,
+            }));
+
+            const output = {
+              totalInstalled: manifests.length,
+              nonNormalCount: items.length,
+              games: items,
+            };
+
+            return {
+              content: [{ type: 'text' as const, text: JSON.stringify(output, null, 2) }],
+            };
+          } catch (error) {
+            const msg = error instanceof Error ? error.message : String(error);
+            return {
+              content: [{ type: 'text' as const, text: `Error checking download queue: ${msg}` }],
+              isError: true,
+            };
+          }
         }
 
-        return {
-          content: [{ type: 'text' as const, text: JSON.stringify(results, null, 2) }],
-        };
-      } catch (error) {
-        const msg = error instanceof Error ? error.message : String(error);
-        return {
-          content: [{ type: 'text' as const, text: `Error checking download progress: ${msg}` }],
-          isError: true,
-        };
+        case 'progress': {
+          try {
+            const folders = getLibraryFolders();
+
+            interface DownloadInfo {
+              appid: number;
+              name: string;
+              stateFlags: number;
+              states: string[];
+              bytesToDownload: number;
+              bytesDownloaded: number;
+              bytesToStage: number;
+              bytesStaged: number;
+              downloadProgress: string;
+              stageProgress: string;
+              overallProgress: string;
+              libraryPath: string;
+            }
+
+            const results: DownloadInfo[] = [];
+
+            for (const folder of folders) {
+              const steamapps = path.join(folder, 'steamapps');
+              if (!fs.existsSync(steamapps)) continue;
+
+              let entries: string[];
+              try {
+                entries = fs.readdirSync(steamapps);
+              } catch {
+                continue;
+              }
+
+              for (const entry of entries) {
+                if (!entry.startsWith('appmanifest_') || !entry.endsWith('.acf')) continue;
+
+                const manifestPath = path.join(steamapps, entry);
+                try {
+                  // Read fresh — don't use cache since download bytes change rapidly
+                  const content = fs.readFileSync(manifestPath, 'utf-8');
+                  const parsed = parseVdf(content);
+                  const state = (parsed['AppState'] ?? parsed) as VdfObject;
+
+                  const appid = parseInt(String(state['appid'] ?? '0'), 10);
+                  const flags = parseInt(String(state['StateFlags'] ?? '0'), 10);
+
+                  // If filtering by appid, skip non-matching
+                  if (params.appid !== undefined && appid !== params.appid) continue;
+
+                  // If no appid filter, only show non-fully-installed games
+                  if (params.appid === undefined && flags === 4) continue;
+
+                  const bytesToDownload = parseInt(String(state['BytesToDownload'] ?? '0'), 10);
+                  const bytesDownloaded = parseInt(String(state['BytesDownloaded'] ?? '0'), 10);
+                  const bytesToStage = parseInt(String(state['BytesToStage'] ?? '0'), 10);
+                  const bytesStaged = parseInt(String(state['BytesStaged'] ?? '0'), 10);
+
+                  const dlPct = bytesToDownload > 0
+                    ? ((bytesDownloaded / bytesToDownload) * 100).toFixed(1) + '%'
+                    : 'N/A';
+                  const stagePct = bytesToStage > 0
+                    ? ((bytesStaged / bytesToStage) * 100).toFixed(1) + '%'
+                    : 'N/A';
+
+                  // Overall = weighted average of download + staging
+                  const totalBytes = bytesToDownload + bytesToStage;
+                  const doneBytes = bytesDownloaded + bytesStaged;
+                  const overallPct = totalBytes > 0
+                    ? ((doneBytes / totalBytes) * 100).toFixed(1) + '%'
+                    : flags === 4 ? '100%' : 'N/A';
+
+                  results.push({
+                    appid,
+                    name: String(state['name'] ?? `Unknown (${appid})`),
+                    stateFlags: flags,
+                    states: decodeStateFlags(flags),
+                    bytesToDownload,
+                    bytesDownloaded,
+                    bytesToStage,
+                    bytesStaged,
+                    downloadProgress: `${formatBytes(bytesDownloaded)} / ${formatBytes(bytesToDownload)} (${dlPct})`,
+                    stageProgress: `${formatBytes(bytesStaged)} / ${formatBytes(bytesToStage)} (${stagePct})`,
+                    overallProgress: overallPct,
+                    libraryPath: folder,
+                  });
+                } catch {
+                  // skip unreadable manifests
+                }
+              }
+            }
+
+            if (results.length === 0) {
+              const msg = params.appid !== undefined
+                ? `No manifest found for appid ${params.appid}, or it is fully installed.`
+                : 'No active downloads or updates.';
+              return {
+                content: [{ type: 'text' as const, text: msg }],
+              };
+            }
+
+            return {
+              content: [{ type: 'text' as const, text: JSON.stringify(results, null, 2) }],
+            };
+          } catch (error) {
+            const msg = error instanceof Error ? error.message : String(error);
+            return {
+              content: [{ type: 'text' as const, text: `Error checking download progress: ${msg}` }],
+              isError: true,
+            };
+          }
+        }
       }
     },
   );

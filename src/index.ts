@@ -3,32 +3,18 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { registerGameTools } from './tools/games.js';
 import { registerLibraryTools } from './tools/library.js';
-import { registerStorageTools } from './tools/storage.js';
-import { registerCompatTools } from './tools/compat.js';
-import { registerConfigTools } from './tools/config.js';
-import { registerWorkshopTools } from './tools/workshop.js';
-import { registerCacheTools } from './tools/cache.js';
-import { registerShortcutTools } from './tools/shortcuts.js';
-import { registerSaveTools } from './tools/saves.js';
-import { registerLaunchTools } from './tools/launch.js';
-import { registerDiagnosticsTools } from './tools/diagnostics.js';
-import { registerMediaTools } from './tools/media.js';
-import { registerNewsTools } from './tools/news.js';
 import { registerStatusTools } from './tools/status.js';
-import { registerHistoryTools } from './tools/history.js';
-import { registerProfileTools } from './tools/profile.js';
-import { registerFriendsApiTools } from './tools/friends-api.js';
-import { registerOwnedTools } from './tools/owned.js';
-import { registerAchievementsApiTools } from './tools/achievements-api.js';
-import { registerStoreApiTools } from './tools/store-api.js';
-import { registerWishlistTools } from './tools/wishlist.js';
+import { registerProtonTools } from './tools/proton.js';
+import { registerDiagnosticsTools } from './tools/diagnostics.js';
+import { registerGameControlTools } from './tools/game-control.js';
+import { registerGameConfigTools } from './tools/game-config.js';
+import { registerShortcutTools } from './tools/shortcuts.js';
+import { registerStorageTools } from './tools/storage.js';
+import { registerPlayerTools } from './tools/player.js';
+import { registerWorkshopTools } from './tools/workshop.js';
 import { registerDealsTools } from './tools/deals.js';
-import { registerValuationTools } from './tools/valuation.js';
 import { registerInsightsTools } from './tools/insights.js';
-import { registerWorkshopSearchTools } from './tools/workshop-search.js';
-import { registerExportTools } from './tools/export.js';
-import { registerHowLongToBeatTools } from './tools/howlongtobeat.js';
-import { registerTweaksTools } from './tools/tweaks.js';
+import { registerGameInfoTools } from './tools/game-info.js';
 
 const server = new McpServer({
   name: 'steam-mcp',
@@ -43,23 +29,13 @@ const server = new McpServer({
 
 const TOOL_CATEGORIES: Record<string, Array<(s: McpServer) => void>> = {
   core: [registerGameTools, registerLibraryTools, registerStatusTools],
-  storage: [registerStorageTools, registerCacheTools],
-  compat: [registerCompatTools],
-  config: [registerConfigTools],
-  workshop: [registerWorkshopTools],
-  shortcuts: [registerShortcutTools],
-  saves: [registerSaveTools],
-  launch: [registerLaunchTools],
-  diagnostics: [registerDiagnosticsTools],
-  media: [registerMediaTools, registerNewsTools],
-  history: [registerHistoryTools],
-  api: [registerProfileTools, registerFriendsApiTools, registerOwnedTools, registerAchievementsApiTools, registerStoreApiTools, registerWishlistTools],
-  deals: [registerDealsTools, registerValuationTools],
+  compat: [registerProtonTools, registerDiagnosticsTools],
+  manage: [registerGameControlTools, registerGameConfigTools, registerShortcutTools],
+  storage: [registerStorageTools],
+  api: [registerPlayerTools, registerWorkshopTools],
+  market: [registerDealsTools],
   insights: [registerInsightsTools],
-  search: [registerWorkshopSearchTools],
-  export: [registerExportTools],
-  hltb: [registerHowLongToBeatTools],
-  tweaks: [registerTweaksTools],
+  content: [registerGameInfoTools],
 };
 
 const enabledCategories = process.env.STEAM_TOOLS
