@@ -65,9 +65,42 @@ export function getSteamDir(): string {
 }
 
 /**
+ * Pick the active account from the "users" section of loginusers.vdf.
+ *
+ * Newer Steam clients no longer write MostRecent, so fall back to the entry
+ * with the newest Timestamp, or to the only entry if there is just one.
+ *
+ * @returns The [steamId64, user] entry, or undefined if none can be chosen.
+ */
+export function selectUserEntry(users: VdfObject): [string, VdfObject] | undefined {
+  const entries = Object.entries(users).filter(
+    (entry): entry is [string, VdfObject] => typeof entry[1] === 'object',
+  );
+
+  const mostRecent = entries.find(
+    ([, user]) => user['MostRecent'] === '1' || user['mostrecent'] === '1',
+  );
+  if (mostRecent) return mostRecent;
+
+  let newest: [string, VdfObject] | undefined;
+  let newestTimestamp = -Infinity;
+  for (const entry of entries) {
+    const raw = entry[1]['Timestamp'] ?? entry[1]['timestamp'];
+    const timestamp = typeof raw === 'string' ? parseInt(raw, 10) : NaN;
+    if (timestamp > newestTimestamp) {
+      newest = entry;
+      newestTimestamp = timestamp;
+    }
+  }
+  if (newest) return newest;
+
+  return entries.length === 1 ? entries[0] : undefined;
+}
+
+/**
  * Parse config/loginusers.vdf and return the most-recently-used user's config.
  *
- * @returns The UserConfig for the user with MostRecent=1.
+ * @returns The UserConfig for the user picked by selectUserEntry().
  * @throws If loginusers.vdf cannot be found or parsed, or no recent user exists.
  */
 export function getUserConfig(): UserConfig {
@@ -81,24 +114,21 @@ export function getUserConfig(): UserConfig {
     throw new Error('No "users" section found in loginusers.vdf');
   }
 
-  for (const [steamId64, userData] of Object.entries(users)) {
-    if (typeof userData !== 'object') continue;
-
-    const userObj = userData as VdfObject;
-    if (userObj['MostRecent'] === '1' || userObj['mostrecent'] === '1') {
-      const id64 = BigInt(steamId64);
-      const id32 = Number(id64 - STEAMID64_BASE);
-
-      return {
-        steamId64,
-        steamId32: id32,
-        accountName: (userObj['AccountName'] ?? userObj['accountname'] ?? '') as string,
-        personaName: (userObj['PersonaName'] ?? userObj['personaname'] ?? '') as string,
-      };
-    }
+  const selected = selectUserEntry(users);
+  if (!selected) {
+    throw new Error('No user with MostRecent=1 or a valid Timestamp found in loginusers.vdf');
   }
 
-  throw new Error('No user with MostRecent=1 found in loginusers.vdf');
+  const [steamId64, userObj] = selected;
+  const id64 = BigInt(steamId64);
+  const id32 = Number(id64 - STEAMID64_BASE);
+
+  return {
+    steamId64,
+    steamId32: id32,
+    accountName: (userObj['AccountName'] ?? userObj['accountname'] ?? '') as string,
+    personaName: (userObj['PersonaName'] ?? userObj['personaname'] ?? '') as string,
+  };
 }
 
 /**
